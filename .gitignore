@@ -1,0 +1,6 @@
+# Compiled files
+*.elc
+
+# Cask cache
+/.cask/
+/dist/
