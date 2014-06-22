@@ -24,7 +24,7 @@
 
 ;;; Commentary:
 
-;; Compose and reuse regular expressions with ease.
+;; Compose and reuse Emacs regular expressions with ease.
 ;;
 ;; If you ever tried to write more than a few of related regexps and it felt
 ;; that there should be a way to pick out their common parts and just plug them
@@ -43,33 +43,49 @@
 (defvar rx-parent)
 
 (defun arx--ensure-regexp (maybe-regexp)
-  "Convert rx form to regexp string if necessary."
+  "Convert MAYBE-REGEXP to string if it is an rx form."
   (if (listp maybe-regexp)
       (rx-form maybe-regexp rx-parent)
     maybe-regexp))
 
 (defun arx--quoted-literal (literal &optional form)
+  "Regexp-quote and shy-group LITERAL as necessary.
+
+When partially applied, can be added to `rx' constituents to
+handle FORM."
   (rx-check (list form))
   (rx-form literal rx-parent))
 
 
 (defun arx--apply-form-func (form-func form)
-  "Apply function to form, return result as regexp string."
+  "Apply FORM-FUNC to FORM, return result as regexp string.
+
+When partially applied, can be added to `rx' constituents to
+handle FORM."
   (rx-check form)
   (arx--ensure-regexp (apply form-func form)))
 
 
-(defun arx--alias-rx-form (rx-form form)
+(defun arx--alias-rx-form (aliased-form form)
+  "Convert ALIASED-FORM to string.
+
+When partially applied, can be added to `rx' constituents to
+handle FORM."
   (rx-check (list form))
-  (arx--ensure-regexp rx-form))
+  (rx-form aliased-form rx-parent))
 
 
-(defun arx--to-rx (form)
-  (unless (listp form)
-    (error "arx: Form is not a list: %S" form))
+(defun arx--to-rx (arx-form)
+  "Convert ARX-FORM to rx format.
 
-  (let* ((form-name (car form))
-         (form-defn (cadr form)))
+ARX-FORM must be list containing one element according to the
+`define-arx' documentation."
+
+  (unless (listp arx-form)
+    (error "Form is not a list: %S" arx-form))
+
+  (let* ((form-name (car arx-form))
+         (form-defn (cadr arx-form)))
     (cons form-name
           (cond
            ((listp form-defn)
@@ -99,29 +115,77 @@
             ;; already a valid rx form, do nothing
             form-defn)
 
-           (t (error "arx: Incorrect form: %S" form))))))
+           (t (error "Incorrect arx-form: %S" arx-form))))))
 
 ;;;###autoload
 (defmacro define-arx (macro &rest forms)
+  "Generate a custom rx-like macro under name MACRO.
+
+See `rx' for how the generated macro can be invoked.
+
+FORMS is a list of custom s-exp definitions to create whose
+elements have the form (SYM ARX-FORM), where ARX-FORM is one of
+the following:
+
+- \"LITERAL\" -- create a matcher to match a string literally
+
+- (regexp \"LITERAL\") -- create a match given a regexp
+
+- SYMBOL -- create an alias for a symbol either defined earlier
+  on the list or provided by `rx'
+
+- (SUBFORM ...) -- create an alias for an application of s-exp
+  subform either defined earlier on the list or provided by `rx'
+
+- (:func #'FORM-FUNC ...) -- create an s-exp definition
+
+The most interesting here is the last variant.  When a
+corresponding rx form will be encountered, FORM-FUNC will be
+called with all elements of that form as arguments (with the
+first one being the form symbol itself).  FORM-FUNC must then
+return a valid s-exp or a properly grouped plain regexp.
+
+Another keywords that are recognized in the plist are:
+- :min-args -- minimum number of arguments for that form (default nil)
+- :max-args -- minimum number of arguments for that form (default nil)
+- :predicate -- if given, all rx form arguments must satisfy it"
   (let* ((macro-name (symbol-name macro))
          (macro-to-string (intern (concat macro-name "-to-string")))
          (macro-constituents (intern (concat macro-name "-constituents"))))
     `(progn
-       (defvar ,macro-constituents)
+       (defvar ,macro-constituents nil
+         ,(format
+           "List of valid forms for `%s' and `%s-to-string' functions.
+
+See variable `rx-constituents' for more information on list
+elements."  macro-name macro-name))
        (setq ,macro-constituents (copy-sequence rx-constituents))
        (mapc (lambda (form)
                (push (arx--to-rx form) ,macro-constituents))
              (quote ,forms))
 
        (defun ,macro-to-string (form &optional no-group)
+         ,(format "Parse and produce code for regular expression FORM.
+
+See function `rx-to-string' for more documentation on FORM and
+NO-GROUP parameters.
+
+This function extends the set of supported forms as described by
+variable `%s-constituents'.
+" macro-name)
          (let ((rx-constituents ,macro-constituents))
            (rx-to-string form no-group)))
 
        (defmacro ,macro (&rest regexps)
-         "Translate regular expressions REGEXPS in sexp form to a regexp string.
+         ,(format
+           "Translate regular expressions REGEXPS in sexp form to a regexp string.
 
-This is an extension of the standard `rx' macro via the
-`define-arx' functionality."
+See function `rx' for more documentation on REGEXPS parameter.
+See function `%s-to-string' for how to do such a translation at
+run-time.
+
+This function extends the set of supported forms as described by
+variable `%s-constituents'." macro-name macro-name)
          (cond ((null regexps)
                 (error "No regexp"))
                ((cdr regexps)

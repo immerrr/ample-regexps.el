@@ -2,8 +2,8 @@
  ample-regexps.el
 ========
 
-Ample Regular eXpressions for Emacs.  Compose and reuse regular expressions
-with ease.
+Ample regular expressions — Compose and reuse Emacs regular expressions with
+ease.
 
 If you ever tried to write more than a few related regexps and it felt that
 there should be a way to pick out their common parts and just plug them in
@@ -12,11 +12,11 @@ without worrying about grouping and precedence, this package is for you.
 Installation
 ------------
 
-`ample-regexps` is yet to be posted to package archives.  Till then, just drop the file
-somewhere on `load-path`.
+``ample-regexps`` is yet to be posted to package archives.  Till then, just
+drop the file somewhere on ``load-path``.
 
-`ample-regexps` has no dependencies and is tested to work on Emacs24.  It *should* work on
-Emacs23, but no guarantees about that.
+``ample-regexps`` has no dependencies and is tested to work on Emacs24.  It
+*should* work on Emacs23, but no guarantees about that.
 
 
 Contributing
@@ -26,11 +26,11 @@ There's plenty of ways to help: use this package, spread the word, fix bugs,
 post bug reports or fresh ideas to the issue tracker, add tests, etc.
 
 To participate in development, you'll probably need `cask
-<https://github.com/cask/cask>`.  The only dependency as of now is
+<https://github.com/cask/cask>`_.  The only dependency as of now is
 `ert-runner`, so it's possible to run tests manually, but it's rather
 inconvenient.  It's a lot easier to just do:
 
-..code-block:: bash
+.. code-block:: bash
 
     $ cask install
     $ make test
@@ -41,10 +41,10 @@ Documentation
 Basic Usage
 ===========
 
-The main item of the API is the `define-arx` macro.  Let's start with a simple
+The main item of the API is the ``define-arx`` macro.  Let's start with a simple
 example:
 
-..code-block:: emacs-lisp
+.. code-block:: emacs-lisp
 
     (define-arx hello-world-rx) ;; -> hello-world-rx
 
@@ -52,12 +52,11 @@ example:
 
     (hello-world-rx (* "Hello, world")) ;; -> "\\(?:Hello, world\\)*"
 
-`define-arx` defines a macro that converts s-exps into regular expressions.  If
-you're familiar with `rx
-<http://git.savannah.gnu.org/cgit/emacs.git/tree/lisp/emacs-lisp/rx.el>`
+``define-arx`` defines a macro that converts s-exps into regular expressions.  If
+you're familiar with `rx <http://git.savannah.gnu.org/cgit/emacs.git/tree/lisp/emacs-lisp/rx.el>`_
 package shipped with Emacs — if not, I encourage you to do so — you're probably
-starting to experience déjà vu.  You're right: `rx` *is* used underneath,
-`ample-regexps` is just a cherry on the pie adding customization with a hint of
+starting to experience déjà vu.  You're right: ``rx`` *is* used underneath,
+``ample-regexps`` is just a cherry on the pie adding customization with a hint of
 syntactic sugar atop.
 
 Aliasing
@@ -66,7 +65,7 @@ Aliasing
 Let's start with something simple and see how you can alias components to save
 some keystrokes:
 
-..code-block:: emacs-lisp
+.. code-block:: emacs-lisp
 
     (define-arx h-w-rx
       (h "Hello, ")
@@ -79,7 +78,7 @@ some keystrokes:
 Aliased literals are regexp quoted, but you can alias a regular expression if
 you want:
 
-..code-block:: emacs-lisp
+.. code-block:: emacs-lisp
 
     (define-arx alnum-rx
       (alpha_ (regexp "[[:alpha:]_]"))
@@ -87,10 +86,10 @@ you want:
 
     (alnum-rx (+ alpha_) (* alnum_)) ;; -> "[[:alpha:]_]+[[:alnum:]_]*"
 
-In fact, `regexp` is just a `rx` S-expression which you can compose and nest
+In fact, ``(regexp ...)`` is just a ``rx`` S-expression which you can compose and nest
 arbitrarily to define even more forms:
 
-..code-block:: emacs-lisp
+.. code-block:: emacs-lisp
 
     (define-arx assignment-rx
       (alpha_ (regexp "[[:alpha:]_]"))
@@ -106,7 +105,7 @@ Custom S-expressions
 Ok, this was all simple aliasing, but what if you want to add some custom
 S-expressions, too?  Fear thou not, we've got you covered:
 
-..code-block:: emacs-lisp
+.. code-block:: emacs-lisp
 
     (define-arx cond-assignment-rx
       (alpha_ (regexp "[[:alpha:]_]"))
@@ -119,13 +118,13 @@ S-expressions, too?  Fear thou not, we've got you covered:
 
     (cond-assignment-rx cond-keyword ws id ":" id ws "=" ws id) ;; -> "\\_<\\(?:elif\\|if\\|while\\)\\_>[[:blank:]]*\\_<\\(?:[[:alpha:]_]+\\|[[:alnum:]_]*\\)\\_>:\\_<\\(?:[[:alpha:]_]+\\|[[:alnum:]_]*\\)\\_>[[:blank:]]*=[[:blank:]]*\\_<\\(?:[[:alpha:]_]+\\|[[:alnum:]_]*\\)\\_>"
 
-`(:func ...)` plist allows to use a simple function that will be passed all the
+``(:func ...)`` plist allows to use a simple function that will be passed all the
 s-expressions from the form as arguments with the first argument will being the
 form symbol itself.  You can treat them as a list like above or decompose and
-name to your liking (`destructuring-bind` anyone?).  Let's see how one could
+name to your liking (``destructuring-bind`` anyone?).  Let's see how one could
 write a matcher for a list of comma-separated values:
 
-..code-block:: emacs-lisp
+.. code-block:: emacs-lisp
 
     (define-arx csv-rx
       (csv (:func (lambda (_form n arg)
@@ -138,11 +137,13 @@ write a matcher for a list of comma-separated values:
 There's a drawback to this, if you pass an incorrect number of arguments,
 you'll get an unreadable error message:
 
+.. code-block:: emacs-lisp
+
     (csv-rx (csv 3 "foo" "bar")) ;; -> Wrong number of arguments: (lambda (_form n arg) (\` (seq (\,@ (nbutlast (cl-loop for i from 1 to n collect (\` (group-n (\, i) (\, arg))) collect ", ")))))), 4
 
-To make this more readable, form-function plist supports `:min-args` and `:max-args` keywords:
+To make this more readable, form-function plist supports ``:min-args`` and ``:max-args`` keywords:
 
-..code-block:: emacs-lisp
+.. code-block:: emacs-lisp
 
     (define-arx csv-rx
       (csv (:func (lambda (_form n arg)
@@ -160,11 +161,11 @@ Recursion
 =========
 
 Form functions obviously can be made to support recursion.  You may have
-noticed that `csv-rx` only matches lists of exactly N elements.  Let's fix it
+noticed that ``csv-rx`` only matches lists of exactly N elements.  Let's fix it
 to match any length up to N (you can achieve the same effect with a simple
-loop, but I really wanted to avoid using factorial to showing recursion):
+loop, but I really wanted to avoid using factorial to show recursion):
 
-..code-block:: emacs-lisp
+.. code-block:: emacs-lisp
 
     (defun csv-opt (_form n elt &optional accum)
       (cond
@@ -184,9 +185,10 @@ Raw Power
 =========
 
 Form functions can return raw regular expressions, too.  This is, for example,
-how you could backport `group-n` form to Emacs23 (if you had to):
+how you could backport ``group-n`` form to Emacs23 where it's not available (if
+you had to):
 
-..code-block:: emacs-lisp
+.. code-block:: emacs-lisp
 
     (define-arx backport-rx
       (group-n (:func (lambda (_form index &rest args)
@@ -196,11 +198,11 @@ how you could backport `group-n` form to Emacs23 (if you had to):
 
     (backport-rx (group-n 1 (seq "foo" (* "bar")))) ;; -> "\\(?1:foo\\(?:bar\\)*\\)"
 
-The snippet above uses `mapconcat` and a bit of underdocumented `rx`
+The snippet above uses ``mapconcat`` and a bit of underdocumented ``rx``
 functionality, you can avoid that with special convenience functions:
-`arx-and` and `arx-or`:
+``arx-and`` and ``arx-or``:
 
-..code-block:: emacs-lisp
+.. code-block:: emacs-lisp
 
     (define-arx backport-rx
       (group-n (:func (lambda (_form index &rest args)
@@ -213,7 +215,7 @@ functionality, you can avoid that with special convenience functions:
 Be warned though, this is a power user feature and no extra grouping will be
 performed which may cause unexpected results:
 
-..code-block:: emacs-lisp
+.. code-block:: emacs-lisp
 
     (define-arx ungrouped-rx
       (foo (:func (lambda (_form) "foo")))) ;; -> ungrouped-rx
@@ -227,15 +229,15 @@ To avoid surprises, make sure you the resulting expressions are grouped.
 How Does This Work
 ==================
 
-`(define-arx foobar-rx ...)` is a macro, that defines three things:
+``(define-arx foobar-rx ...)`` is a macro, that defines three things:
 
-- a macro `(foobar-rx ...)` to be replaced by a constant during compilation
-- a function `(foobar-rx-to-string ...)` that can be used in runtime
-- a variable `foobar-rx-constituents` with form definitions to use
+- a macro ``(foobar-rx ...)`` to be replaced by a constant during compilation
+- a function ``(foobar-rx-to-string ...)`` that can be used in runtime
+- a variable ``foobar-rx-constituents`` with form definitions to use
 
 When either the function or the macro is called, constituents variable is used
-to override `rx-constituents` via dynamic scoping and the rest is performed by
-`rx-to-string` function.
+to override ``rx-constituents`` via dynamic scoping and the rest is performed by
+``rx-to-string`` function.
 
 License
 -------
