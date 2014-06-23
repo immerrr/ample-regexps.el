@@ -1,4 +1,4 @@
-;;; ample-regexps.el --- ample regular expressions for Emacs -*- lexical-binding: t -*-
+;;; ample-regexps.el --- ample regular expressions for Emacs
 
 ;; Copyright (C) 2014 immerrr
 
