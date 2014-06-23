@@ -161,7 +161,8 @@ See variable `rx-constituents' for more information on list
 elements."  macro-name macro-name))
        (setq ,macro-constituents (copy-sequence rx-constituents))
        (mapc (lambda (form)
-               (push (arx--to-rx form) ,macro-constituents))
+               (when form
+                 (push (arx--to-rx form) ,macro-constituents)))
              ,forms)
 
        (defun ,macro-to-string (form &optional no-group)

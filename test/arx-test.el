@@ -122,3 +122,18 @@
  ;; (or ...) forms consisting only of strings.
  (should (equal (arx-or '("bar" "foo")) "\\(?:bar\\|foo\\)"))
  (should (equal (arx-or '("foo" (or "bar" "baz"))) "foo\\|\\(?:ba[rz]\\)")))
+
+
+(ert-deftest arx-conditional-form-inclusion ()
+  (with-myrx
+   `((foo "foo")
+     ,(when t '(bar "hello")))
+   (should (assq 'foo myrx-constituents))
+   (should (assq 'bar myrx-constituents)))
+
+  (with-myrx
+   `((foo "foo")
+     ,(when nil '(bar "hello")))
+   (should (assq 'foo myrx-constituents))
+   (should-not (assq 'bar myrx-constituents))
+   (should-not (assq nil myrx-constituents))))
