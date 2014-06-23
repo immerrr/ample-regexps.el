@@ -118,7 +118,7 @@ ARX-FORM must be list containing one element according to the
            (t (error "Incorrect arx-form: %S" arx-form))))))
 
 ;;;###autoload
-(defmacro define-arx (macro &rest forms)
+(defmacro define-arx (macro forms)
   "Generate a custom rx-like macro under name MACRO.
 
 See `rx' for how the generated macro can be invoked.
@@ -162,7 +162,7 @@ elements."  macro-name macro-name))
        (setq ,macro-constituents (copy-sequence rx-constituents))
        (mapc (lambda (form)
                (push (arx--to-rx form) ,macro-constituents))
-             (quote ,forms))
+             ,forms)
 
        (defun ,macro-to-string (form &optional no-group)
          ,(format "Parse and produce code for regular expression FORM.

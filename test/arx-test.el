@@ -8,12 +8,12 @@
 
 (ert-deftest arx-empty-list ()
   (with-myrx
-   ()
+   '()
    (should (equal (myrx "foobar") "foobar"))))
 
 (ert-deftest arx-alias-for-literal-basic ()
   (with-myrx
-   ((hello "Hello"))
+   '((hello "Hello"))
    (should (equal (myrx hello) "Hello"))
    (should (equal (myrx hello ", world") "Hello, world"))
    (should (equal (myrx (or hello ", world")) "Hello\\|, world"))
@@ -22,42 +22,42 @@
 
 (ert-deftest arx-alias-for-literal-with-quoting ()
   (with-myrx
-   ((foobar "^$")
-    (empty-line (regexp "^$")))
+   '((foobar "^$")
+     (empty-line (regexp "^$")))
    (should (equal (myrx foobar) "\\^\\$"))
    (should (equal (myrx empty-line) "^$"))))
 
 
 (ert-deftest arx-alias-for-regexp ()
   (with-myrx
-   ((ws (regexp "[ \t]*")))
+   '((ws (regexp "[ \t]*")))
    (should (equal (myrx ws) "[ \t]*"))))
 
 
 (ert-deftest arx-alias-for-other-symbol ()
   (with-myrx
-   ((ws (regexp "[ \t]*"))
-    (ws2 ws))
+   '((ws (regexp "[ \t]*"))
+     (ws2 ws))
    (should (equal (myrx ws2) "[ \t]*"))))
 
 
 (ert-deftest arx-alias-for-rx-sexp ()
   (with-myrx
-   ((for (seq symbol-start "for" symbol-end)))
+   '((for (seq symbol-start "for" symbol-end)))
    (should (equal (myrx for) "\\_<for\\_>"))))
 
 
 (ert-deftest arx-alias-for-arx-sexp ()
   (with-myrx
-   ((name (regexp "[[:alnum:]_]+"))
-    (assign (seq name "=" name)))
+   '((name (regexp "[[:alnum:]_]+"))
+     (assign (seq name "=" name)))
    (should (equal (myrx assign) "[[:alnum:]_]+=[[:alnum:]_]+"))))
 
 
 (ert-deftest arx-form-function-returning-regexp ()
   (with-myrx
-   ((1: (:func (lambda (name &rest args)
-                 (concat "\\(?1:" (arx-and args) "\\)")))))
+   '((1: (:func (lambda (name &rest args)
+                  (concat "\\(?1:" (arx-and args) "\\)")))))
    (should (equal (myrx (1: "foo"))
                   "\\(?1:foo\\)"))
    (should (equal (myrx (1: "foo" "bar" "baz"))
@@ -73,36 +73,36 @@
 
 (ert-deftest arx-form-function-returning-form ()
   (with-myrx
-   ((sym (:func
-          (lambda (name &rest args)
-            (if (> (length args) 1)
-                (setq args `(or ,@args)))
-            `(seq symbol-start ,@args symbol-stop))))
-    (should (equal (myrx (sym "foo"))
-                   "\\_<foo\\_>"))
-    (should (equal (myrx (sym "foo" "bar"))
-                   "\\_<\\(?:foo\\|bar\\)\\_>"))
-    (should (equal (myrx (sym (seq (or "foo" "bar") "baz")))
-                   "\\_<\\(?:\\(?:foo\\|bar\\)baz\\)\\_>"))
+   '((sym (:func
+           (lambda (name &rest args)
+             (if (> (length args) 1)
+                 (setq args `(or ,@args)))
+             `(seq symbol-start ,@args symbol-stop))))
+     (should (equal (myrx (sym "foo"))
+                    "\\_<foo\\_>"))
+     (should (equal (myrx (sym "foo" "bar"))
+                    "\\_<\\(?:foo\\|bar\\)\\_>"))
+     (should (equal (myrx (sym (seq (or "foo" "bar") "baz")))
+                    "\\_<\\(?:\\(?:foo\\|bar\\)baz\\)\\_>"))
 
-    ;; This test hardly makes any sense regex-wise, but empty arguments are not
-    ;; forbidden in the form definition, so should work.
-    (should (equal (myrx (sym)) "\\_<\\_>")))))
+     ;; This test hardly makes any sense regex-wise, but empty arguments are not
+     ;; forbidden in the form definition, so should work.
+     (should (equal (myrx (sym)) "\\_<\\_>")))))
 
 
 
 (ert-deftest arx-form-function-min-args ()
-    (with-myrx
-     ((n: (:func
-           (lambda (name index &rest args)
-             (concat (format "\\(?%d:" index) (arx-and args) "\\)"))
-           :min-args 1)))
-     (should (equal (myrx (n: 5 "foo"))
-                    "\\(?5:foo\\)"))
-     (should (equal (myrx (n: 1 "foo" "bar" "baz"))
-                    "\\(?1:foobarbaz\\)"))
-     (should-error (myrx-to-string 'n: 'nogroup))
-     (should-error (myrx-to-string '(n:) 'nogroup))))
+  (with-myrx
+   '((n: (:func
+          (lambda (name index &rest args)
+            (concat (format "\\(?%d:" index) (arx-and args) "\\)"))
+          :min-args 1)))
+   (should (equal (myrx (n: 5 "foo"))
+                  "\\(?5:foo\\)"))
+   (should (equal (myrx (n: 1 "foo" "bar" "baz"))
+                  "\\(?1:foobarbaz\\)"))
+   (should-error (myrx-to-string 'n: 'nogroup))
+   (should-error (myrx-to-string '(n:) 'nogroup))))
 
 
 

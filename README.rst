@@ -68,8 +68,8 @@ some keystrokes:
 .. code-block:: emacs-lisp
 
     (define-arx h-w-rx
-      (h "Hello, ")
-      (w "world")) ;; -> hello-world-rx
+      '((h "Hello, ")
+        (w "world"))) ;; -> hello-world-rx
 
     (h-w-rx h w) ;; -> "Hello, world"
 
@@ -81,8 +81,8 @@ you want:
 .. code-block:: emacs-lisp
 
     (define-arx alnum-rx
-      (alpha_ (regexp "[[:alpha:]_]"))
-      (alnum_ (regexp "[[:alnum:]_]"))) ;; -> alnum-rx
+      '((alpha_ (regexp "[[:alpha:]_]"))
+        (alnum_ (regexp "[[:alnum:]_]")))) ;; -> alnum-rx
 
     (alnum-rx (+ alpha_) (* alnum_)) ;; -> "[[:alpha:]_]+[[:alnum:]_]*"
 
@@ -92,10 +92,10 @@ arbitrarily to define even more forms:
 .. code-block:: emacs-lisp
 
     (define-arx assignment-rx
-      (alpha_ (regexp "[[:alpha:]_]"))
-      (alnum_ (regexp "[[:alnum:]_]"))
-      (ws (* blank))
-      (id (seq symbol-start (+ alpha_) (* alnum_) symbol-end))) ;; -> assignment-rx
+      '((alpha_ (regexp "[[:alpha:]_]"))
+        (alnum_ (regexp "[[:alnum:]_]"))
+        (ws (* blank))
+        (id (seq symbol-start (+ alpha_) (* alnum_) symbol-end)))) ;; -> assignment-rx
 
     (assignment-rx id ws "=" ws id) ;; -> "\\_<[[:alpha:]_]+[[:alnum:]_]*\\_>[[:blank:]]*=[[:blank:]]*\\_<[[:alpha:]_]+[[:alnum:]_]*\\_>"
 
@@ -108,13 +108,13 @@ S-expressions, too?  Fear thou not, we've got you covered:
 .. code-block:: emacs-lisp
 
     (define-arx cond-assignment-rx
-      (alpha_ (regexp "[[:alpha:]_]"))
-      (alnum_ (regexp "[[:alnum:]_]"))
-      (ws (* blank))
-      (sym (:func (lambda (_form &rest args)
-                    `(seq symbol-start (or ,@args) symbol-end))))
-      (cond-keyword (sym "if" "elif" "while"))
-      (id (sym (+ alpha_) (* alnum_)))) ;; -> cond-assignment-rx
+      '((alpha_ (regexp "[[:alpha:]_]"))
+        (alnum_ (regexp "[[:alnum:]_]"))
+        (ws (* blank))
+        (sym (:func (lambda (_form &rest args)
+                      `(seq symbol-start (or ,@args) symbol-end))))
+        (cond-keyword (sym "if" "elif" "while"))
+        (id (sym (+ alpha_) (* alnum_))))) ;; -> cond-assignment-rx
 
     (cond-assignment-rx cond-keyword ws id ":" id ws "=" ws id) ;; -> "\\_<\\(?:elif\\|if\\|while\\)\\_>[[:blank:]]*\\_<\\(?:[[:alpha:]_]+\\|[[:alnum:]_]*\\)\\_>:\\_<\\(?:[[:alpha:]_]+\\|[[:alnum:]_]*\\)\\_>[[:blank:]]*=[[:blank:]]*\\_<\\(?:[[:alpha:]_]+\\|[[:alnum:]_]*\\)\\_>"
 
@@ -127,10 +127,10 @@ write a matcher for a list of comma-separated values:
 .. code-block:: emacs-lisp
 
     (define-arx csv-rx
-      (csv (:func (lambda (_form n arg)
-                    `(seq ,@(nbutlast (cl-loop for i from 1 to n
-                                               collect `(group-n ,i ,arg)
-                                               collect ", "))))))) ;; -> csv-rx
+      '((csv (:func (lambda (_form n arg)
+                      `(seq ,@(nbutlast (cl-loop for i from 1 to n
+                                                 collect `(group-n ,i ,arg)
+                                                 collect ", ")))))))) ;; -> csv-rx
 
     (csv-rx (csv 3 (seq "foobar"))) ;; -> "\\(?1:foobar\\), \\(?2:foobar\\), \\(?3:foobar\\)"
 
@@ -146,12 +146,12 @@ To make this more readable, form-function plist supports ``:min-args`` and ``:ma
 .. code-block:: emacs-lisp
 
     (define-arx csv-rx
-      (csv (:func (lambda (_form n arg)
-                    `(seq ,@(nbutlast (cl-loop for i from 1 to n
-                                               collect `(group-n ,i ,arg)
-                                               collect ", "))))
-                  :min-args 2
-                  :max-args 2))) ;; -> csv-rx
+      '((csv (:func (lambda (_form n arg)
+                      `(seq ,@(nbutlast (cl-loop for i from 1 to n
+                                                 collect `(group-n ,i ,arg)
+                                                 collect ", "))))
+                    :min-args 2
+                    :max-args 2)))) ;; -> csv-rx
 
     (csv-rx (csv 3 "foo" "bar")) ;; -> (error "rx form `csv' accepts at most 2 args")
 
@@ -174,7 +174,7 @@ loop, but I really wanted to avoid using factorial to show recursion):
        (t (csv-opt _form (1- n) elt (list 'group-n n elt `(opt ", " ,accum)))))) ;; -> csv-opt
 
     (define-arx csv-opt-rx
-      (csv-opt (:func csv-opt))) ;; -> csv-opt-rx
+      '((csv-opt (:func csv-opt)))) ;; -> csv-opt-rx
 
     (csv-opt-rx (csv-opt 3 "foo")) ;; -> "\\(?1:foo\\(?:, \\(?2:foo\\(?:, \\(?3:foo\\)\\)?\\)\\)?\\)"
 
@@ -191,10 +191,10 @@ you had to):
 .. code-block:: emacs-lisp
 
     (define-arx backport-rx
-      (group-n (:func (lambda (_form index &rest args)
-                        (concat (format "\\(?%d:" index)
-                                (mapconcat (lambda (f) (rx-form f ':)) args "")
-                                "\\)"))))) ;; -> backport-rx
+      '((group-n (:func (lambda (_form index &rest args)
+                          (concat (format "\\(?%d:" index)
+                                  (mapconcat (lambda (f) (rx-form f ':)) args "")
+                                  "\\)")))))) ;; -> backport-rx
 
     (backport-rx (group-n 1 (seq "foo" (* "bar")))) ;; -> "\\(?1:foo\\(?:bar\\)*\\)"
 
@@ -205,10 +205,10 @@ functionality, you can avoid that with special convenience functions:
 .. code-block:: emacs-lisp
 
     (define-arx backport-rx
-      (group-n (:func (lambda (_form index &rest args)
-                        (concat (format "\\(?%d:" index)
-                                (arx-and args)
-                                "\\)"))))) ;; -> backport-rx
+      '((group-n (:func (lambda (_form index &rest args)
+                          (concat (format "\\(?%d:" index)
+                                  (arx-and args)
+                                  "\\)")))))) ;; -> backport-rx
 
     (backport-rx (group-n 1 (seq "foo" (* "bar")))) ;; -> "\\(?1:foo\\(?:bar\\)*\\)"
 
@@ -218,7 +218,7 @@ performed which may cause unexpected results:
 .. code-block:: emacs-lisp
 
     (define-arx ungrouped-rx
-      (foo (:func (lambda (_form) "foo")))) ;; -> ungrouped-rx
+      '((foo (:func (lambda (_form) "foo"))))) ;; -> ungrouped-rx
 
     (ungrouped-rx (foo) (foo)) ;; -> "foofoo"
 

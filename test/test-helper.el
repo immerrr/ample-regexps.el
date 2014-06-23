@@ -2,7 +2,7 @@
 
 (defmacro with-myrx (arx-forms &rest body)
   `(progn
-     (define-arx myrx ,@arx-forms)
+     (define-arx myrx ,arx-forms)
      (unwind-protect
          (progn ,@body)
        (fmakunbound 'myrx-to-string)
