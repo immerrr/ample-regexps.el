@@ -1,6 +1,6 @@
-========
+==================
  ample-regexps.el
-========
+==================
 
 Ample regular expressions — Compose and reuse Emacs regular expressions with
 ease.
@@ -12,12 +12,23 @@ without worrying about grouping and precedence, this package is for you.
 Installation
 ------------
 
-``ample-regexps`` is yet to be posted to package archives.  Till then, just
-drop the file somewhere on ``load-path``.
+``ample-regexps`` is available on `MELPA <melpa.milkbox.net>`_ from where it
+can be installed via::
 
-``ample-regexps`` has no dependencies and is tested to work on Emacs24.  It
-*should* work on Emacs23, but no guarantees about that.
+    M-x package-install ample-regexps
 
+If you haven't yet added MELPA repositories to your config, feel free to follow
+`these instructions <http://melpa.milkbox.net/#/getting-startedyet>`_ to do so.
+
+Also, since this package has no dependencies, you can just drop the
+``ample-regexps.el`` file somewhere on ``load-path`` and enable it via
+
+.. code-block:: emacs-lisp
+
+   (require 'ample-regexps)
+
+``ample-regexps`` is tested to work on Emacs24.  It *should* work on Emacs23,
+but no guarantees about that.
 
 Contributing
 ------------
@@ -32,8 +43,8 @@ inconvenient.  It's a lot easier to just do:
 
 .. code-block:: bash
 
-    $ cask install
-    $ make test
+   $ cask install
+   $ make test
 
 Documentation
 -------------
