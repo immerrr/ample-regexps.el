@@ -12,13 +12,13 @@ without worrying about grouping and precedence, this package is for you.
 Installation
 ------------
 
-``ample-regexps`` is available on `MELPA <melpa.milkbox.net>`_ from where it
+``ample-regexps`` is available on `MELPA <http://melpa.milkbox.net>`_ from where it
 can be installed via::
 
     M-x package-install ample-regexps
 
 If you haven't yet added MELPA repositories to your config, feel free to follow
-`these instructions <http://melpa.milkbox.net/#/getting-startedyet>`_ to do so.
+`these instructions <http://melpa.milkbox.net/#/getting-started>`_ to do so.
 
 Also, since this package has no dependencies, you can just drop the
 ``ample-regexps.el`` file somewhere on ``load-path`` and enable it via
@@ -63,12 +63,13 @@ example:
 
     (hello-world-rx (* "Hello, world")) ;; -> "\\(?:Hello, world\\)*"
 
-``define-arx`` defines a macro that converts s-exps into regular expressions.  If
-you're familiar with `rx <http://git.savannah.gnu.org/cgit/emacs.git/tree/lisp/emacs-lisp/rx.el>`_
-package shipped with Emacs — if not, I encourage you to do so — you're probably
-starting to experience déjà vu.  You're right: ``rx`` *is* used underneath,
-``ample-regexps`` is just a cherry on the pie adding customization with a hint of
-syntactic sugar atop.
+``define-arx`` defines a macro that converts s-exps into regular expressions.
+If you're familiar with `rx
+<http://git.savannah.gnu.org/cgit/emacs.git/tree/lisp/emacs-lisp/rx.el>`_
+package — if not, I encourage you to do so — you're probably starting to
+experience déjà vu.  You're right: ``rx`` *is* used underneath,
+``ample-regexps`` is just a cherry on the pie adding customization with a hint
+of syntactic sugar atop.
 
 Aliasing
 ========
@@ -97,8 +98,8 @@ you want:
 
     (alnum-rx (+ alpha_) (* alnum_)) ;; -> "[[:alpha:]_]+[[:alnum:]_]*"
 
-In fact, ``(regexp ...)`` is just a ``rx`` S-expression which you can compose and nest
-arbitrarily to define even more forms:
+In fact, ``(regexp ...)`` is just an ``rx`` S-expression which you can compose
+and nest arbitrarily to define even more forms:
 
 .. code-block:: emacs-lisp
 
