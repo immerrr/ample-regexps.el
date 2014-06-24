@@ -118,13 +118,13 @@ ARX-FORM must be list containing one element according to the
            (t (error "Incorrect arx-form: %S" arx-form))))))
 
 ;;;###autoload
-(defmacro define-arx (macro forms)
+(defmacro define-arx (macro form-defs)
   "Generate a custom rx-like macro under name MACRO.
 
 See `rx' for how the generated macro can be invoked.
 
-FORMS is a list of custom s-exp definitions to create whose
-elements have the form (SYM ARX-FORM), where ARX-FORM is one of
+FORM-DEFS is a list of custom s-exp definitions to create whose
+elements have the form (SYM DEF), where DEF is one of
 the following:
 
 - \"LITERAL\" -- create a matcher to match a string literally
@@ -163,7 +163,7 @@ elements."  macro-name macro-name))
        (mapc (lambda (form)
                (when form
                  (push (arx--to-rx form) ,macro-constituents)))
-             ,forms)
+             ,form-defs)
 
        (defun ,macro-to-string (form &optional no-group)
          ,(format "Parse and produce code for regular expression FORM.
