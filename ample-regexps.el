@@ -149,16 +149,23 @@ Another keywords that are recognized in the plist are:
 - :min-args -- minimum number of arguments for that form (default nil)
 - :max-args -- minimum number of arguments for that form (default nil)
 - :predicate -- if given, all rx form arguments must satisfy it"
-  (let* ((macro-name (symbol-name macro))
+  (let* ((evaluated-form-defs (eval form-defs))
+         (form-defs-str (if evaluated-form-defs (format "\
+Adds the following definitions to the ones supported by `rx':
+
+%s
+" evaluated-form-defs) ""))
+         (macro-name (symbol-name macro))
          (macro-to-string (intern (concat macro-name "-to-string")))
          (macro-constituents (intern (concat macro-name "-constituents"))))
     `(progn
        (defvar ,macro-constituents nil
          ,(format
-           "List of valid forms for `%s' and `%s-to-string' functions.
+           "List of form definitions for `%s' and `%s-to-string' functions.
+%s\
 
 See variable `rx-constituents' for more information on list
-elements."  macro-name macro-name))
+elements."  macro-name macro-name form-defs-str))
        (setq ,macro-constituents (copy-sequence rx-constituents))
        (mapc (lambda (form)
                (when form
@@ -168,12 +175,8 @@ elements."  macro-name macro-name))
        (defun ,macro-to-string (form &optional no-group)
          ,(format "Parse and produce code for regular expression FORM.
 
-See function `rx-to-string' for more documentation on FORM and
-NO-GROUP parameters.
-
-This function extends the set of supported forms as described by
-variable `%s-constituents'.
-" macro-name)
+FORM is a regular expression in sexp form as supported by `%s'.
+NO-GROUP non-nil means don't put shy groups around the result." macro)
          (let ((rx-constituents ,macro-constituents))
            (rx-to-string form no-group)))
 
@@ -182,11 +185,10 @@ variable `%s-constituents'.
            "Translate regular expressions REGEXPS in sexp form to a regexp string.
 
 See function `rx' for more documentation on REGEXPS parameter.
-See function `%s-to-string' for how to do such a translation at
-run-time.
+%s\
 
-This function extends the set of supported forms as described by
-variable `%s-constituents'." macro-name macro-name)
+See function `%s-to-string' for how to do such a translation at
+run-time." form-defs-str macro-name)
          (cond ((null regexps)
                 (error "No regexp"))
                ((cdr regexps)
