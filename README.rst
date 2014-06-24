@@ -182,8 +182,8 @@ loop, but I really wanted to avoid using factorial to show recursion):
     (defun csv-opt (_form n elt &optional accum)
       (cond
        ((<= n 0) accum)
-       ((null accum) (csv-opt _form (1- n) elt (list 'group-n n elt)))
-       (t (csv-opt _form (1- n) elt (list 'group-n n elt `(opt ", " ,accum)))))) ;; -> csv-opt
+       ((null accum) (list _form (1- n) elt (list 'group-n n elt)))
+       (t (list _form (1- n) elt (list 'group-n n elt `(opt ", " ,accum)))))) ;; -> csv-opt
 
     (define-arx csv-opt-rx
       '((csv-opt (:func csv-opt)))) ;; -> csv-opt-rx
