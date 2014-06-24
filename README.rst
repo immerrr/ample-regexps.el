@@ -57,7 +57,7 @@ example:
 
 .. code-block:: emacs-lisp
 
-    (define-arx hello-world-rx) ;; -> hello-world-rx
+    (define-arx hello-world-rx '()) ;; -> hello-world-rx
 
     (hello-world-rx "Hello, world") ;; -> "Hello, world"
 
