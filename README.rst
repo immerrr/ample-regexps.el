@@ -12,23 +12,33 @@ without worrying about grouping and precedence, this package is for you.
 Installation
 ------------
 
+``ample-regexps`` is tested to work on Emacs24.  It *should* work on Emacs23,
+but no guarantees about that.
+
+MELPA
+=====
 ``ample-regexps`` is available on `MELPA <http://melpa.milkbox.net>`_ from where it
 can be installed via::
 
-    M-x package-install ample-regexps
+  M-x package-install ample-regexps
 
 If you haven't yet added MELPA repositories to your config, feel free to follow
 `these instructions <http://melpa.milkbox.net/#/getting-started>`_ to do so.
 
+el-get
+======
+The library is also available via `el-get <https://github.com/dimitri/el-get>`_::
+
+    M-x el-get-install ample-regexps
+
+Manual installation
+===================
 Also, since this package has no dependencies, you can just drop the
-``ample-regexps.el`` file somewhere on ``load-path`` and enable it via
+``ample-regexps.el`` file somewhere on ``load-path`` and enable it with
 
 .. code-block:: emacs-lisp
 
    (require 'ample-regexps)
-
-``ample-regexps`` is tested to work on Emacs24.  It *should* work on Emacs23,
-but no guarantees about that.
 
 Contributing
 ------------
