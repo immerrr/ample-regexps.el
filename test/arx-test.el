@@ -90,20 +90,35 @@
      (should (equal (myrx (sym)) "\\_<\\_>")))))
 
 
+(ert-deftest arx-form-function-fixed-number-of-args ()
+  (with-myrx
+   '((foobar (:func (lambda (_ foo bar) `(or ,foo ,bar)))))
+   (should (equal (myrx (foobar "x" "y")) "[xy]"))
 
-(ert-deftest arx-form-function-min-args ()
+   (should-error-re (myrx-to-string '(foobar "x" "y" "z"))
+                    "rx form `foobar' accepts at most 2 args")
+   (should-error-re (myrx-to-string '(foobar "x"))
+                    "rx form `foobar' requires at least 2 args")
+   (should-error-re (myrx-to-string '(foobar))
+                    "rx form `foobar' requires at least 2 args")
+   (should-error-re (myrx-to-string 'foobar)
+                    "rx `foobar' needs argument(s)")))
+
+
+(ert-deftest arx-form-function-max-args-overrides-rest-specification ()
   (with-myrx
    '((n: (:func
           (lambda (name index &rest args)
             (concat (format "\\(?%d:" index) (arx-and args) "\\)"))
-          :min-args 1)))
-   (should (equal (myrx (n: 5 "foo"))
-                  "\\(?5:foo\\)"))
-   (should (equal (myrx (n: 1 "foo" "bar" "baz"))
-                  "\\(?1:foobarbaz\\)"))
-   (should-error (myrx-to-string 'n: 'nogroup))
-   (should-error (myrx-to-string '(n:) 'nogroup))))
+          :max-args 3)))
+   (should (equal (myrx (n: 1 "foo" "bar")) "\\(?1:foobar\\)"))
 
+   (should-error-re (myrx-to-string 'n: 'nogroup)
+                    "rx `n:' needs argument(s)")
+   (should-error-re (myrx-to-string '(n:) 'nogroup)
+                    "rx form `n:' requires at least 1 arg")
+   (should-error-re (myrx-to-string '(n: 1 "foo" "bar" "baz"))
+                    "rx form `n:' accepts at most 3 args")))
 
 
 (ert-deftest arx-convenience-function-arx-and ()

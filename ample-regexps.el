@@ -38,6 +38,7 @@
 ;;; Code:
 
 (require 'rx)
+(require 'help-fns)
 
 ;; Make sure `rx-parent' is dynamically bound
 (defvar rx-parent)
@@ -75,6 +76,53 @@ handle FORM."
   (rx-form aliased-form rx-parent))
 
 
+(defun arx--bound-interval (interval lower upper)
+  "Restrict INTERVAL with LOWER and UPPER boundaries.
+
+INTERVAL is a list: (MIN MAX).
+LOWER and UPPER may be nil, which means 'no boundary'.
+
+Returned value is a list (MIN-MAYBE MAX-MAYBE), where MIN-MAYBE
+is non-nil only if greater than 0 and MAX-MAYBE is non-nil only
+if less than `most-positive-fixnum'."
+  (let ((i-min (car interval))
+        (i-max (cadr interval)))
+    (when lower
+      (setq i-min (max i-min lower)))
+    (when upper
+      (setq i-max (min i-max upper)))
+
+    (list (when (< 0 i-min) i-min)
+          (when (< i-max most-positive-fixnum) i-max))))
+
+
+(defun arx--function-arity (func)
+  "Get min and max number of arguments accepted by FUNC."
+  (let ((arglist (help-function-arglist func))
+        (min-args 0) max-args)
+    ;; Count required arguments.
+    (while (and arglist
+                (not (memq (car arglist) '(&rest &optional))))
+      (setq min-args (1+ min-args))
+      (setq arglist (cdr arglist)))
+
+    ;; Count optional arguments.
+    (setq max-args min-args)
+    (when (eq (car-safe arglist) '&optional)
+      (setq arglist (cdr arglist))
+      (while (and arglist
+                  (not (eq (car arglist) '&rest)))
+        (setq max-args (1+ max-args))
+        (setq arglist (cdr arglist))))
+
+    ;; If rest is present, assign max-args maxint.
+    (list (1- min-args)
+          (if (eq (car-safe arglist) '&rest)
+              most-positive-fixnum
+            (1- max-args)))))
+
+
+
 (defun arx--to-rx (arx-form)
   "Convert ARX-FORM to rx format.
 
@@ -90,13 +138,15 @@ ARX-FORM must be list containing one element according to the
           (cond
            ((listp form-defn)
             (if (eq (car-safe form-defn) :func)
-                ;; fancy function definition
-                (append
-                 (list (apply-partially #'arx--apply-form-func
-                                        (plist-get form-defn :func)))
-                 (mapcar (lambda (kwarg)
-                           (plist-get form-defn kwarg))
-                         '(:min-args :max-args :predicate)))
+                (let* ((func (byte-compile (plist-get form-defn :func)))
+                       (min-args (plist-get form-defn :min-args))
+                       (max-args (plist-get form-defn :max-args))
+                       (arity (arx--bound-interval (arx--function-arity func)
+                                                   min-args max-args))
+                       (predicate (plist-get form-defn :predicate)))
+                  ;; fancy function definition
+                  `( ,(apply-partially #'arx--apply-form-func func)
+                     ,@arity ,predicate))
               ;; This doesn't work:
               ;;
               ;;     (list (lambda (form) (arx--alias-rx-form form-defn form))
