@@ -8,5 +8,8 @@
        (fmakunbound 'myrx-to-string)
        (fmakunbound 'myrx))))
 
+(defmacro should-error-re (expr pattern)
+  `(should (string-match ,pattern (cadr (should-error ,expr)))))
+
 
 (provide 'test-helper)
