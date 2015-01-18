@@ -197,7 +197,7 @@ return a valid s-exp or a properly grouped plain regexp.
 
 Another keywords that are recognized in the plist are:
 - :min-args -- minimum number of arguments for that form (default nil)
-- :max-args -- minimum number of arguments for that form (default nil)
+- :max-args -- maximum number of arguments for that form (default nil)
 - :predicate -- if given, all rx form arguments must satisfy it"
   (let* ((evaluated-form-defs (eval form-defs))
          (form-defs-str (if evaluated-form-defs (format "\
