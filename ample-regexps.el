@@ -304,6 +304,28 @@ Use function `%s-to-string' to do such a translation at run-time."
        (rx-or `(or ,@forms))
      (arx-and forms))))
 
+(autoload 'reb-change-syntax "re-builder")
+
+;;;###autoload
+(defun arx-builder (&optional arx-name)
+  "Run `re-builder' using arx form named ARX-NAME."
+  (interactive
+   (list (completing-read
+          "Select arx form: "
+          (let (l) (mapatoms (lambda (x)
+                               (when (equal (symbol-name x)
+                                            (get x 'canonical-arx-name))
+                                 (push x l))))
+               l)
+          nil t)))
+  (re-builder)
+  (reb-change-syntax 'rx)
+  (erase-buffer)
+  (insert (format "(%s \"\")" arx-name))
+  ;; XXX: for some reason overlays are only updated when something inside a
+  ;; string changes in re-builder buffer.
+  (backward-char 2))
+
 (provide 'ample-regexps)
 
 ;;; ample-regexps.el ends here
