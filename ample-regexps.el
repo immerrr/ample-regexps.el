@@ -230,63 +230,64 @@ Another keywords that are recognized in the plist are:
   (let* ((macro-name (symbol-name macro))
          (macro-to-string (intern (concat macro-name "-to-string")))
          (macro-constituents (intern (concat macro-name "-constituents"))))
-    `(let (form-docstrings)
-       (progn
-         (defvar ,macro-constituents nil)
-         (setq ,macro-constituents (copy-sequence rx-constituents))
-         (mapc (lambda (form)
-                 (when form
-                   (push (arx--to-rx form) ,macro-constituents)
-                   (push (arx--form-make-docstring form) form-docstrings)))
-               ,form-defs)
+    `(eval-and-compile
+       (let (form-docstrings)
+         (progn
+           (defvar ,macro-constituents nil)
+           (setq ,macro-constituents (copy-sequence rx-constituents))
+           (mapc (lambda (form)
+                   (when form
+                     (push (arx--to-rx form) ,macro-constituents)
+                     (push (arx--form-make-docstring form) form-docstrings)))
+                 ,form-defs)
 
-         (defun ,macro-to-string (form &optional no-group)
-           (let ((rx-constituents ,macro-constituents))
-             (rx-to-string form no-group)))
+           (defun ,macro-to-string (form &optional no-group)
+             (let ((rx-constituents ,macro-constituents))
+               (rx-to-string form no-group)))
 
-         (defmacro ,macro (&rest regexps)
-           (cond ((null regexps)
-                  (error "No regexp"))
-                 ((cdr regexps)
-                  (,macro-to-string `(and ,@regexps) t))
-                 (t
-                  (,macro-to-string (car regexps) t))))
+           (defmacro ,macro (&rest regexps)
+             (cond ((null regexps)
+                    (error "No regexp"))
+                   ((cdr regexps)
+                    (,macro-to-string `(and ,@regexps) t))
+                   (t
+                    (,macro-to-string (car regexps) t))))
 
-         ;; Add docstrings.
-         (put
-          (quote ,macro-constituents) 'variable-documentation
-          ,(format
-            "List of form definitions for `%s' and `%s-to-string' functions.
+           ;; Add docstrings.
+           (put
+            (quote ,macro-constituents) 'variable-documentation
+            ,(format
+              "List of form definitions for `%s' and `%s-to-string' functions.
 
 See `%s' for a human readable list of defined forms.
 
 See variable `rx-constituents' for more information about format
 of elements of this list."  macro-name macro-name macro-name) )
-         (put
-          (quote ,macro-to-string) 'function-documentation
-          ,(format "Parse and produce code for regular expression FORM.
+           (put
+            (quote ,macro-to-string) 'function-documentation
+            ,(format "Parse and produce code for regular expression FORM.
 
 FORM is a regular expression in sexp form as supported by `%s'.
 NO-GROUP non-nil means don't put shy groups around the result." macro))
-         (put
-          (quote ,macro) 'function-documentation
-          (format "\
+           (put
+            (quote ,macro) 'function-documentation
+            (format "\
 Translate regular expressions REGEXPS in sexp form to a regexp string.
 
 See macro `rx' for more documentation on REGEXPS parameter.
 %s\
 
 Use function `%s-to-string' to do such a translation at run-time."
-                  (if form-docstrings
-                      (format "This macro additionally supports the following forms:\n\n%s\n"
-                              (mapconcat #'identity (nreverse form-docstrings) "\n\n")) "")
-                  ,macro-name))
+                    (if form-docstrings
+                        (format "This macro additionally supports the following forms:\n\n%s\n"
+                                (mapconcat #'identity (nreverse form-docstrings) "\n\n")) "")
+                    ,macro-name))
 
-         ;; Mark macro & function for future reference.
-         (put (quote ,macro-to-string) 'canonical-arx-name ,macro-name)
-         (put (quote ,macro) 'canonical-arx-name ,macro-name)
-         ;; Return value is the macro symbol.
-         (quote ,macro)))))
+           ;; Mark macro & function for future reference.
+           (put (quote ,macro-to-string) 'canonical-arx-name ,macro-name)
+           (put (quote ,macro) 'canonical-arx-name ,macro-name)
+           ;; Return value is the macro symbol.
+           (quote ,macro))))))
 
 ;;;###autoload
 (defun arx-and (forms)
