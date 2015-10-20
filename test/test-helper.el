@@ -1,6 +1,7 @@
 (require 'ample-regexps)
 
 (defmacro with-myrx (arx-forms &rest body)
+  (declare (debug (&rest form)))
   `(progn
      (define-arx myrx ,arx-forms)
      (unwind-protect
