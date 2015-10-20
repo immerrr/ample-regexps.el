@@ -16,3 +16,6 @@ test-compiled: ample-regexps.elc
 	cask exec ert-runner -l ample-regexps.elc
 
 test: test-compiled test-uncompiled
+
+tryout:
+	cask exec $(EMACS) -Q -l init-tryout.el test-arx.el
