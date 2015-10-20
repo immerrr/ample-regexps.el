@@ -307,6 +307,7 @@ Use function `%s-to-string' to do such a translation at run-time."
        (rx-or `(or ,@forms))
      (arx-and forms))))
 
+(defvar reb-buffer)
 (autoload 'reb-change-syntax "re-builder")
 
 ;;;###autoload
@@ -321,13 +322,23 @@ Use function `%s-to-string' to do such a translation at run-time."
                                  (push x l))))
                l)
           nil t)))
-  (re-builder)
-  (reb-change-syntax 'rx)
-  (erase-buffer)
-  (insert (format "(%s \"\")" arx-name))
-  ;; XXX: for some reason overlays are only updated when something inside a
-  ;; string changes in re-builder buffer.
-  (backward-char 2))
+
+  (let* ((reb-buffer-name (format "*arx-builder(%s)*" arx-name)))
+
+    (let ((reb-buffer reb-buffer-name))
+      (condition-case nil
+          (re-builder)
+        (error))
+      (condition-case nil
+          (reb-change-syntax 'rx)
+        (error)))
+    (set (make-local-variable 'reb-buffer) reb-buffer-name)
+    (set (make-local-variable 'rx-constituents)
+         (symbol-value (intern (concat arx-name "-constituents"))))))
+
+
+
+
 
 (provide 'ample-regexps)
 
