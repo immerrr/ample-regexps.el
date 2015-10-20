@@ -139,6 +139,12 @@
  (should (equal (arx-or '("foo" (or "bar" "baz"))) "foo\\|\\(?:ba[rz]\\)")))
 
 
+(ert-deftest arx-check-func-form ()
+  (should-error-re
+   (with-myrx `((foo (:func ---foobarbaz-nonexistent---))))
+   "Not a function: ---foobarbaz-nonexistent---"))
+
+
 (ert-deftest arx-conditional-form-inclusion ()
   (with-myrx
    `((foo "foo")

@@ -137,7 +137,9 @@ ARX-FORM must be list containing one element according to the
           (cond
            ((listp form-defn)
             (if (eq (car-safe form-defn) :func)
-                (let* ((func (byte-compile (plist-get form-defn :func)))
+                (let* ((func (if (functionp (plist-get form-defn :func))
+                                 (byte-compile (plist-get form-defn :func))
+                               (error "Not a function: %S" (plist-get form-defn :func))))
                        (min-args (plist-get form-defn :min-args))
                        (max-args (plist-get form-defn :max-args))
                        (arity (arx--bound-interval (arx--function-arity func)
