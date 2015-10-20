@@ -158,3 +158,56 @@
    (should (assq 'foo myrx-constituents))
    (should-not (assq 'bar myrx-constituents))
    (should-not (assq nil myrx-constituents))))
+
+
+(defun arx--test-form (form foo bar))
+
+
+(ert-deftest arx-eldoc-support ()
+  (with-temp-buffer
+    (emacs-lisp-mode)
+    (eldoc-mode 1)
+    (ample-regexps-dev-mode 1)
+    (insert "\
+ (myrx (foo s)
+      (bar s)
+      (baz s)
+      (bazz s)
+      (qux s)
+      (quux s)
+      (yyy s)
+      (zzz s))")
+    (goto-char (point-min))
+    (with-myrx
+     `((foo "foo")
+       (bar foo)
+       (baz (:func arx--test-form))
+       (bazz baz)
+       (qux (:func (lambda (_ &rest args))))
+       (quux qux)
+       ;; (yyy (:func ---nzcvzxcvonexistentasdf---))
+       (zzz xxxx))
+     (fboundp 'myrx)
+     (should (re-search-forward "foo s"))
+     (should-not (funcall eldoc-documentation-function))
+
+     (should (re-search-forward "bar s"))
+     (should-not (funcall eldoc-documentation-function))
+
+     (should (re-search-forward "baz s"))
+     (should-not (funcall eldoc-documentation-function))
+
+     (should (re-search-forward "bazz s"))
+     (should-not (funcall eldoc-documentation-function))
+
+     (should (re-search-forward "qux s"))
+     (should-not (funcall eldoc-documentation-function))
+
+     (should (re-search-forward "quux s"))
+     (should-not (funcall eldoc-documentation-function))
+
+     (should (re-search-forward "yyy s"))
+     (should-not (funcall eldoc-documentation-function))
+
+     (should (re-search-forward "zzz s"))
+     (should-not (funcall eldoc-documentation-function)))))

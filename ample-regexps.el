@@ -197,6 +197,91 @@ ARX-FORM must be list containing one element according to the
               (buffer-substring-no-properties (point-min) (point-max))))))
 
 
+(defun arx--fnsym-in-current-sexp ()
+  "Return current function symbol and current arg index."
+  (save-excursion
+    (when (nth 8 (syntax-ppss))
+      ;; Exit innermost string or comment.
+      (goto-char (nth 8 (syntax-ppss))))
+    (elisp--fnsym-in-current-sexp)))
+
+
+(defun arx--name-and-depth ()
+  "Return name of innermost arx function and relative depth to it."
+  (save-excursion
+    (let (beginning-of-innermost-sexp
+          fnword
+          fnsym
+          found-arx-form
+          (depth 0))
+      (while (and (not found-arx-form)
+                  (setq beginning-of-innermost-sexp (nth 1 (syntax-ppss)))
+                  (goto-char (1+ beginning-of-innermost-sexp))
+                  (setq fnword (current-word 'strict))
+                  (setq fnsym (intern fnword))
+                  (setq depth (1+ depth)))
+        (setq found-arx-form (get fnsym 'arx-name))
+        (goto-char beginning-of-innermost-sexp))
+      (cons found-arx-form depth))))
+
+
+(defun arx--get-form-func (arx-name sym)
+  "In arx ARX-NAME find :func form for SYM (or nil if if doesn't exist).
+
+Resolves all aliases on the way."
+  ;; FIXME: add support for builtin rx forms.
+  (let ((form-defs
+         (get (intern (concat arx-name "-constituents")) 'arx-form-defs))
+        sym-defn
+        found-form-func)
+    (while (and (not found-form-func)
+                sym
+                (setq sym-defn (cadr (assq sym form-defs))))
+      (cond
+       ((eq (car-safe sym-defn) :func)
+        (setq found-form-func (cadr sym-defn)))
+       ((symbolp sym-defn)
+        (setq sym sym-defn))))
+    found-form-func))
+
+
+(defun arx--get-args-string (func sym index)
+  "Return highlighted args string for FUNC referred by SYM at INDEX'th arg."
+  (let ((arglist (help-function-arglist func)))
+    (elisp--highlight-function-argument
+     sym (elisp-function-argstring (cdr arglist)) index
+     (concat (propertize (symbol-name sym) 'face 'font-lock-function-name-face)
+             ": "))))
+
+
+(defun arx-documentation-function ()
+  "Return current rx form as required for eldoc."
+  (let* ((name-and-depth (arx--name-and-depth))
+         (fnsym (and (car name-and-depth)
+                     (> (cdr name-and-depth) 1)
+                     (arx--fnsym-in-current-sexp)))
+         (func (and (car fnsym)
+                    (arx--get-form-func (car name-and-depth) (car fnsym)))))
+
+    (when func
+      (arx--get-args-string func (car fnsym) (cadr fnsym)))))
+
+
+(define-minor-mode arx-minor-mode
+  "Toggle arx minor mode.
+
+When arx-minor-mode is enabled eldoc is hinted to return help for
+known arx forms."
+  :lighter "[arx]"
+  (if arx-minor-mode
+      (add-function :before-until (local 'eldoc-documentation-function)
+                    #'arx-documentation-function)
+    (remove-function (local 'eldoc-documentation-function)
+                     #'arx-documentation-function)))
+
+
+
+
 ;;;###autoload
 (defmacro define-arx (macro form-defs)
   "Generate a custom rx-like macro under name MACRO.
@@ -286,8 +371,9 @@ Use function `%s-to-string' to do such a translation at run-time."
                     ,macro-name))
 
            ;; Mark macro & function for future reference.
-           (put (quote ,macro-to-string) 'canonical-arx-name ,macro-name)
-           (put (quote ,macro) 'canonical-arx-name ,macro-name)
+           (put (quote ,macro-constituents) 'arx-form-defs ,form-defs)
+           (put (quote ,macro-to-string) 'arx-name ,macro-name)
+           (put (quote ,macro) 'arx-name ,macro-name)
            ;; Return value is the macro symbol.
            (quote ,macro))))))
 
@@ -318,7 +404,7 @@ Use function `%s-to-string' to do such a translation at run-time."
           "Select arx form: "
           (let (l) (mapatoms (lambda (x)
                                (when (equal (symbol-name x)
-                                            (get x 'canonical-arx-name))
+                                            (get x 'arx-name))
                                  (push x l))))
                l)
           nil t)))
