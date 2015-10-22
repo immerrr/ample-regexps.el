@@ -181,7 +181,7 @@
 
 (ert-deftest arx-eldoc-support ()
   ;; FIXME: resize window in batch mode?
-  (skip-unless (not noninteractive))
+  :expected-result (if noninteractive :failed :passed)
   (with-temp-buffer
     (emacs-lisp-mode)
     (eldoc-mode 1)
