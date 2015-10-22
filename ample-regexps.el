@@ -54,7 +54,9 @@
 
 When partially applied, can be added to `rx' constituents to
 handle FORM."
-  (rx-check (list form))
+  (unless (listp form)
+    (setq form (list form)))
+  (rx-check form)
   (rx-form literal rx-parent))
 
 
@@ -160,7 +162,8 @@ ARX-FORM must be list containing one element according to the
               ;; Why?
               (list (apply-partially #'arx--alias-rx-form form-defn) 0 0)))
            ((stringp form-defn)
-            (list (apply-partially #'arx--quoted-literal form-defn) 0 0))
+            (list (apply-partially #'arx--quoted-literal form-defn)
+                  0 0 nil))
 
            ((symbolp form-defn)
             ;; already a valid rx form, do nothing
@@ -279,6 +282,91 @@ known arx forms."
     (remove-function (local 'eldoc-documentation-function)
                      #'arx-documentation-function)))
 
+(defun arx--make-macro-constituents-docstring (macro-name)
+  "Format docstring for MACRO-NAME -constituents var."
+  (format "\
+List of form definitions for `%s' and `%s-to-string' functions.
+
+See `%s' for a human readable list of defined forms.
+
+See variable `rx-constituents' for more information about format
+of elements of this list."
+          macro-name macro-name macro-name))
+
+
+(defun arx--make-macro-to-string-docstring (macro-name)
+  "Format docstring for MACRO-NAME -to-string function."
+  (format "\
+Parse and produce code for regular expression FORM.
+
+FORM is a regular expression in sexp form as supported by `%s'.
+NO-GROUP non-nil means don't put shy groups around the result."
+          macro-name))
+
+(defun arx--make-macro-docstring (macro-name form-docstrings)
+  "Format docstring for MACRO-NAME macro that defines extra FORM-DOCSTRINGS."
+  (apply
+   #'concat
+   `("\
+Translate regular expressions REGEXPS in sexp form to a regexp string.
+
+See macro `rx' for more documentation on REGEXPS parameter.
+"
+     ,@(if (not form-docstrings)
+           '("\n")
+         (append '("\
+This macro additionally supports the following forms:
+
+")
+                 (mapcar (lambda (doc) (concat doc "\n\n")) form-docstrings)))
+     ,(format "\
+Use function `%s-to-string' to do such a translation at run-time."
+             macro-name))))
+
+
+(defun define-arx--fn (macro form-defs)
+  "Implementation for `define-arx' for MACRO and FORM-DEFS."
+  (let* ((macro-name (symbol-name macro))
+         (macro-to-string (intern (concat macro-name "-to-string")))
+         (macro-constituents (intern (concat macro-name "-constituents")))
+         form-extra-constituents form-docstrings)
+    ;; Preprocess the definitions
+    (setq form-defs (delq nil form-defs))
+    (setq form-extra-constituents (mapcar #'arx--to-rx form-defs))
+    (setq form-docstrings (mapcar #'arx--form-make-docstring form-defs))
+    `(progn
+       ;; Define MACRO-constituents variable.
+       (defvar ,macro-constituents
+         nil
+         ,(arx--make-macro-constituents-docstring macro-name))
+       ;; Set MACRO-constituents value in setq so as to refresh
+       ;; constituents when re-evaluating define-arx.
+       (setq ,macro-constituents
+             (append rx-constituents (quote ,form-extra-constituents)))
+
+       ;; Define MACRO-to-string function.
+       (defun ,macro-to-string (form &optional no-group)
+         ,(arx--make-macro-to-string-docstring macro-name)
+         (let ((rx-constituents ,macro-constituents))
+           (rx-to-string form no-group)))
+
+       ;; Define MACRO.
+       (defmacro ,macro (&rest regexps)
+         ,(arx--make-macro-docstring macro-name form-docstrings)
+         (cond ((null regexps)
+                (error "No regexp"))
+               ((cdr regexps)
+                (,macro-to-string `(and ,@regexps) t))
+               (t
+                (,macro-to-string (car regexps) t))))
+
+       ;; Mark macro & function for future reference.
+       (put (quote ,macro-constituents) 'arx-form-defs (quote ,form-defs))
+       (put (quote ,macro-to-string) 'arx-name ,macro-name)
+       (put (quote ,macro) 'arx-name ,macro-name)
+
+       ;; Return value is the macro symbol.
+       (quote ,macro))))
 
 
 
@@ -314,68 +402,7 @@ Another keywords that are recognized in the plist are:
 - :min-args -- minimum number of arguments for that form (default nil)
 - :max-args -- maximum number of arguments for that form (default nil)
 - :predicate -- if given, all rx form arguments must satisfy it"
-  (let* ((macro-name (symbol-name macro))
-         (macro-to-string (intern (concat macro-name "-to-string")))
-         (macro-constituents (intern (concat macro-name "-constituents"))))
-    `(eval-and-compile
-       (let (form-docstrings)
-         (progn
-           (defvar ,macro-constituents nil)
-           (setq ,macro-constituents (copy-sequence rx-constituents))
-           (mapc (lambda (form)
-                   (when form
-                     (push (arx--to-rx form) ,macro-constituents)
-                     (push (arx--form-make-docstring form) form-docstrings)))
-                 ,form-defs)
-
-           (defun ,macro-to-string (form &optional no-group)
-             (let ((rx-constituents ,macro-constituents))
-               (rx-to-string form no-group)))
-
-           (defmacro ,macro (&rest regexps)
-             (cond ((null regexps)
-                    (error "No regexp"))
-                   ((cdr regexps)
-                    (,macro-to-string `(and ,@regexps) t))
-                   (t
-                    (,macro-to-string (car regexps) t))))
-
-           ;; Add docstrings.
-           (put
-            (quote ,macro-constituents) 'variable-documentation
-            ,(format
-              "List of form definitions for `%s' and `%s-to-string' functions.
-
-See `%s' for a human readable list of defined forms.
-
-See variable `rx-constituents' for more information about format
-of elements of this list."  macro-name macro-name macro-name) )
-           (put
-            (quote ,macro-to-string) 'function-documentation
-            ,(format "Parse and produce code for regular expression FORM.
-
-FORM is a regular expression in sexp form as supported by `%s'.
-NO-GROUP non-nil means don't put shy groups around the result." macro))
-           (put
-            (quote ,macro) 'function-documentation
-            (format "\
-Translate regular expressions REGEXPS in sexp form to a regexp string.
-
-See macro `rx' for more documentation on REGEXPS parameter.
-%s\
-
-Use function `%s-to-string' to do such a translation at run-time."
-                    (if form-docstrings
-                        (format "This macro additionally supports the following forms:\n\n%s\n"
-                                (mapconcat #'identity (nreverse form-docstrings) "\n\n")) "")
-                    ,macro-name))
-
-           ;; Mark macro & function for future reference.
-           (put (quote ,macro-constituents) 'arx-form-defs ,form-defs)
-           (put (quote ,macro-to-string) 'arx-name ,macro-name)
-           (put (quote ,macro) 'arx-name ,macro-name)
-           ;; Return value is the macro symbol.
-           (quote ,macro))))))
+  (define-arx--fn macro (eval form-defs)))
 
 ;;;###autoload
 (defun arx-and (forms)

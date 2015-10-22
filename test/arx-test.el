@@ -1,4 +1,5 @@
-;; -*-no-byte-compile: t; -*-
+;; -*- flycheck-disabled-checkers: (emacs-lisp-checkdoc) -*-
+;; -*- no-byte-compile: t; -*-
 (require 'ert)
 (require 'test-helper
          ;; let's try a bit to help Emacs find the helpers, just in case
@@ -18,6 +19,19 @@
    (should (equal (myrx hello ", world") "Hello, world"))
    (should (equal (myrx (or hello ", world")) "Hello\\|, world"))
    (should (equal (myrx (* hello)) "\\(?:Hello\\)*"))))
+
+
+(ert-deftest arx-constituents-are-redefined ()
+  (with-myrx
+   '((hello "Hello"))
+   (should (equal (myrx hello) "Hello"))
+
+   (define-arx myrx
+     '((foobar "foobar")))
+
+   (should-error-re
+    (myrx-to-string '(: hello))
+    "Unknown rx form [‘`]hello['’]")))
 
 
 (ert-deftest arx-alias-for-literal-with-quoting ()
@@ -68,7 +82,9 @@
    ;; should-error doesn't work with macros, so fall back to `myrx-to-string'
    (should (equal (myrx-to-string '(1:) 'nogroup)
                   "\\(?1:\\)"))
-   (should-error (myrx-to-string '1: 'nogroup))))
+   (should-error-re
+    (myrx-to-string '1: 'nogroup)
+    "rx [‘`]1:['’] needs argument(s)")))
 
 
 (ert-deftest arx-form-function-returning-form ()
@@ -141,7 +157,9 @@
 
 (ert-deftest arx-check-func-form ()
   (should-error-re
-   (with-myrx `((foo (:func ---foobarbaz-nonexistent---))))
+   (define-arx--fn
+     'myrx
+     `((foo (:func ---foobarbaz-nonexistent---))))
    "Not a function: ---foobarbaz-nonexistent---"))
 
 
@@ -163,51 +181,74 @@
 (defun arx--test-form (form foo bar))
 
 
-(ert-deftest arx-eldoc-support ()
-  (with-temp-buffer
-    (emacs-lisp-mode)
-    (eldoc-mode 1)
-    (arx-minor-mode 1)
-    (insert "\
- (myrx (foo s)
-      (bar s)
-      (baz s)
-      (bazz s)
-      (qux s)
-      (quux s)
-      (yyy s)
-      (zzz s))")
-    (goto-char (point-min))
-    (with-myrx
-     `((foo "foo")
-       (bar foo)
-       (baz (:func arx--test-form))
-       (bazz baz)
-       (qux (:func (lambda (_ &rest args))))
-       (quux qux)
-       ;; (yyy (:func ---nzcvzxcvonexistentasdf---))
-       (zzz xxxx))
-     (fboundp 'myrx)
-     (should (re-search-forward "foo s"))
-     (should-not (funcall eldoc-documentation-function))
+;; (ert-deftest arx-eldoc-support ()
+;;   (with-temp-buffer
+;;     (emacs-lisp-mode)
+;;     (eldoc-mode 1)
+;;     (arx-minor-mode 1)
+;;     (insert "\
+;;  (myrx (foo s)
+;;       (bar s)
+;;       (baz s)
+;;       (bazz s)
+;;       (qux s)
+;;       (quux s)
+;;       (yyy s)
+;;       (zzz s))")
+;;     (goto-char (point-min))
+;;     (with-myrx
+;;      `((foo "foo")
+;;        (bar foo)
+;;        (baz (:func arx--test-form))
+;;        (bazz baz)
+;;        (qux (:func (lambda (_ &rest args))))
+;;        (quux qux)
+;;        ;; (yyy (:func ---nzcvzxcvonexistentasdf---))
+;;        (zzz xxxx))
+;;      (fboundp 'myrx)
+;;      (should (re-search-forward "foo s"))
+;;      (should-not (funcall eldoc-documentation-function))
 
-     (should (re-search-forward "bar s"))
-     (should-not (funcall eldoc-documentation-function))
+;;      (should (re-search-forward "bar s"))
+;;      (should-not (funcall eldoc-documentation-function))
 
-     (should (re-search-forward "baz s"))
-     (should-not (funcall eldoc-documentation-function))
+;;      (should (re-search-forward "baz s"))
+;;      (should-not (funcall eldoc-documentation-function))
 
-     (should (re-search-forward "bazz s"))
-     (should-not (funcall eldoc-documentation-function))
+;;      (should (re-search-forward "bazz s"))
+;;      (should-not (funcall eldoc-documentation-function))
 
-     (should (re-search-forward "qux s"))
-     (should-not (funcall eldoc-documentation-function))
+;;      (should (re-search-forward "qux s"))
+;;      (should-not (funcall eldoc-documentation-function))
 
-     (should (re-search-forward "quux s"))
-     (should-not (funcall eldoc-documentation-function))
+;;      (should (re-search-forward "quux s"))
+;;      (should-not (funcall eldoc-documentation-function))
 
-     (should (re-search-forward "yyy s"))
-     (should-not (funcall eldoc-documentation-function))
+;;      (should (re-search-forward "yyy s"))
+;;      (should-not (funcall eldoc-documentation-function))
 
-     (should (re-search-forward "zzz s"))
-     (should-not (funcall eldoc-documentation-function)))))
+;;      (should (re-search-forward "zzz s"))
+;;      (should-not (funcall eldoc-documentation-function)))))
+
+
+(ert-deftest arx--make-macro-docstring ()
+  (should (equal (arx--make-macro-docstring "foo-rx" '())
+                 "\
+Translate regular expressions REGEXPS in sexp form to a regexp string.
+
+See macro `rx' for more documentation on REGEXPS parameter.
+
+Use function `foo-rx-to-string' to do such a translation at run-time."))
+
+  (should (equal (arx--make-macro-docstring "foo-rx" '("foo" "bar"))
+                 "\
+Translate regular expressions REGEXPS in sexp form to a regexp string.
+
+See macro `rx' for more documentation on REGEXPS parameter.
+This macro additionally supports the following forms:
+
+foo
+
+bar
+
+Use function `foo-rx-to-string' to do such a translation at run-time.")))
