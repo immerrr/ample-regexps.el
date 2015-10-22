@@ -244,7 +244,9 @@ Resolves all aliases on the way."
        ((eq (car-safe sym-defn) :func)
         (setq found-form-func (cadr sym-defn)))
        ((symbolp sym-defn)
-        (setq sym sym-defn))))
+        (setq sym sym-defn))
+       (t
+        (setq sym nil))))
     found-form-func))
 
 

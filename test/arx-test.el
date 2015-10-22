@@ -179,55 +179,75 @@
 
 (defun arx--test-form (form foo bar))
 
+(ert-deftest arx-eldoc-support ()
+  ;; FIXME: resize window in batch mode?
+  (skip-unless (not noninteractive))
+  (with-temp-buffer
+    (emacs-lisp-mode)
+    (eldoc-mode 1)
+    (arx-minor-mode 1)
+    (insert "\
+ (myrx (foo s)
+      (bar s)
+      (baz s)
+      (bazz s y)
+      (qux s)
+      (quux s)
+      (yyy s)
+      (zzz s))")
+    (goto-char (point-min))
+    (with-myrx
+     `((foo "foo")
+       (bar foo)
+       (baz (:func arx--test-form))
+       (bazz baz)
+       (qux (:func (lambda (_ &rest args))))
+       (quux qux)
+       ;; (yyy (:func ---nzcvzxcvonexistentasdf---))
+       (zzz xxxx))
+     (should (re-search-forward "foo s"))
+     (should-not (funcall eldoc-documentation-function))
 
-;; (ert-deftest arx-eldoc-support ()
-;;   (with-temp-buffer
-;;     (emacs-lisp-mode)
-;;     (eldoc-mode 1)
-;;     (arx-minor-mode 1)
-;;     (insert "\
-;;  (myrx (foo s)
-;;       (bar s)
-;;       (baz s)
-;;       (bazz s)
-;;       (qux s)
-;;       (quux s)
-;;       (yyy s)
-;;       (zzz s))")
-;;     (goto-char (point-min))
-;;     (with-myrx
-;;      `((foo "foo")
-;;        (bar foo)
-;;        (baz (:func arx--test-form))
-;;        (bazz baz)
-;;        (qux (:func (lambda (_ &rest args))))
-;;        (quux qux)
-;;        ;; (yyy (:func ---nzcvzxcvonexistentasdf---))
-;;        (zzz xxxx))
-;;      (fboundp 'myrx)
-;;      (should (re-search-forward "foo s"))
-;;      (should-not (funcall eldoc-documentation-function))
+     (should (re-search-forward "bar s"))
+     (should-not (funcall eldoc-documentation-function))
 
-;;      (should (re-search-forward "bar s"))
-;;      (should-not (funcall eldoc-documentation-function))
+     (should (re-search-forward "baz s"))
+     (should (equal-including-properties
+              (funcall eldoc-documentation-function)
+              #("baz: (FOO BAR)" 0 3
+                (face font-lock-function-name-face)
+                6 9
+                (face eldoc-highlight-function-argument))))
 
-;;      (should (re-search-forward "baz s"))
-;;      (should-not (funcall eldoc-documentation-function))
+     (should (re-search-forward "bazz s y"))
+     (should (equal-including-properties
+              (funcall eldoc-documentation-function)
+              #("bazz: (FOO BAR)" 0 4
+                (face font-lock-function-name-face)
+                11 14
+                (face eldoc-highlight-function-argument))))
 
-;;      (should (re-search-forward "bazz s"))
-;;      (should-not (funcall eldoc-documentation-function))
+     (should (re-search-forward "qux s"))
+     (should (equal-including-properties
+              (funcall eldoc-documentation-function)
+              #("qux: (&rest ARGS)" 0 3
+                (face font-lock-function-name-face)
+                12 16
+                (face eldoc-highlight-function-argument))))
 
-;;      (should (re-search-forward "qux s"))
-;;      (should-not (funcall eldoc-documentation-function))
+     (should (re-search-forward "quux s"))
+     (should (equal-including-properties
+              (funcall eldoc-documentation-function)
+              #("quux: (&rest ARGS)" 0 4
+                (face font-lock-function-name-face)
+                13 17
+                (face eldoc-highlight-function-argument))))
 
-;;      (should (re-search-forward "quux s"))
-;;      (should-not (funcall eldoc-documentation-function))
+     (should (re-search-forward "yyy s"))
+     (should-not (funcall eldoc-documentation-function))
 
-;;      (should (re-search-forward "yyy s"))
-;;      (should-not (funcall eldoc-documentation-function))
-
-;;      (should (re-search-forward "zzz s"))
-;;      (should-not (funcall eldoc-documentation-function)))))
+     (should (re-search-forward "zzz s"))
+     (should-not (funcall eldoc-documentation-function)))))
 
 
 (ert-deftest arx--make-macro-docstring ()
