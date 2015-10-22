@@ -20,17 +20,16 @@
    (should (equal (myrx (or hello ", world")) "Hello\\|, world"))
    (should (equal (myrx (* hello)) "\\(?:Hello\\)*"))))
 
-
 (ert-deftest arx-constituents-are-redefined ()
   (with-myrx
    '((hello "Hello"))
-   (should (equal (myrx hello) "Hello"))
+   (should (equal (myrx-to-string '(: hello) t) "Hello"))
 
-   (define-arx myrx
-     '((foobar "foobar")))
+   ;; Ensure this macro is not expanded during ert test definition.
+   (eval (quote (define-arx myrx '((foobar "foobar")))))
 
    (should-error-re
-    (myrx-to-string '(: hello))
+    (myrx-to-string '(: hello) t)
     "Unknown rx form [‘`]hello['’]")))
 
 

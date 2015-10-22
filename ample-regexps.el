@@ -334,7 +334,7 @@ Use function `%s-to-string' to do such a translation at run-time."
     (setq form-defs (delq nil form-defs))
     (setq form-extra-constituents (mapcar #'arx--to-rx form-defs))
     (setq form-docstrings (mapcar #'arx--form-make-docstring form-defs))
-    `(progn
+    `(eval-and-compile
        ;; Define MACRO-constituents variable.
        (defvar ,macro-constituents
          nil
