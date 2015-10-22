@@ -2,6 +2,9 @@
  ample-regexps.el
 ==================
 
+.. image:: https://travis-ci.org/immerrr/ample-regexps.el.svg?branch=master
+   :target: https://travis-ci.org/immerrr/ample-regexps.el
+
 Ample regular expressions — Compose and reuse Emacs regular expressions with
 ease.
 
