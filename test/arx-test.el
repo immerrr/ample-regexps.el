@@ -167,7 +167,7 @@
   (with-temp-buffer
     (emacs-lisp-mode)
     (eldoc-mode 1)
-    (ample-regexps-dev-mode 1)
+    (arx-minor-mode 1)
     (insert "\
  (myrx (foo s)
       (bar s)
