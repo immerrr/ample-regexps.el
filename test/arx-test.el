@@ -7,6 +7,9 @@
                                           default-directory))
                  "test-helper.el"))
 
+(eval-when-compile (require 'cl))
+(require 'el-mock)
+
 (ert-deftest arx-empty-list ()
   (with-myrx
    '()
@@ -179,14 +182,18 @@
 
 (defun arx--test-form (form foo bar))
 
+
 (ert-deftest arx-eldoc-support ()
-  ;; FIXME: resize window in batch mode?
-  :expected-result (if noninteractive :failed :passed)
-  (with-temp-buffer
-    (emacs-lisp-mode)
-    (eldoc-mode 1)
-    (arx-minor-mode 1)
-    (insert "\
+  (with-mock
+    ;; Need to provide a mock for minibuffer-window width, because eldoc string
+    ;; formatter makes decisions based on it and in batch mode the window is
+    ;; only 10 characters wide.
+    (mock (window-width (minibuffer-window)) => 80)
+    (with-temp-buffer
+      (emacs-lisp-mode)
+      (eldoc-mode 1)
+      (arx-minor-mode 1)
+      (insert "\
  (myrx (foo s)
       (bar s)
       (baz s)
@@ -195,62 +202,62 @@
       (quux s)
       (yyy s)
       (zzz s))")
-    (goto-char (point-min))
-    (with-myrx
-     `((foo "foo")
-       (bar foo)
-       (baz (:func arx--test-form))
-       (bazz baz)
-       (qux (:func (lambda (_ &rest args))))
-       (quux qux)
-       ;; (yyy (:func ---nzcvzxcvonexistentasdf---))
-       (zzz xxxx))
-     (should (re-search-forward "foo s"))
-     (should-not (funcall eldoc-documentation-function))
+      (goto-char (point-min))
+      (with-myrx
+       `((foo "foo")
+         (bar foo)
+         (baz (:func arx--test-form))
+         (bazz baz)
+         (qux (:func (lambda (_ &rest args))))
+         (quux qux)
+         ;; (yyy (:func ---nzcvzxcvonexistentasdf---))
+         (zzz xxxx))
+       (should (re-search-forward "foo s"))
+       (should-not (funcall eldoc-documentation-function))
 
-     (should (re-search-forward "bar s"))
-     (should-not (funcall eldoc-documentation-function))
+       (should (re-search-forward "bar s"))
+       (should-not (funcall eldoc-documentation-function))
 
-     (should (re-search-forward "baz s"))
-     (should (equal-including-properties
-              (funcall eldoc-documentation-function)
-              #("baz: (FOO BAR)" 0 3
-                (face font-lock-function-name-face)
-                6 9
-                (face eldoc-highlight-function-argument))))
+       (should (re-search-forward "baz s"))
+       (should (equal-including-properties
+                (funcall eldoc-documentation-function)
+                #("baz: (FOO BAR)" 0 3
+                  (face font-lock-function-name-face)
+                  6 9
+                  (face eldoc-highlight-function-argument))))
 
-     (should (re-search-forward "bazz s y"))
-     (should (equal-including-properties
-              (funcall eldoc-documentation-function)
-              #("bazz: (FOO BAR)" 0 4
-                (face font-lock-function-name-face)
-                11 14
-                (face eldoc-highlight-function-argument))))
+       (should (re-search-forward "bazz s y"))
+       (should (equal-including-properties
+                (funcall eldoc-documentation-function)
+                #("bazz: (FOO BAR)" 0 4
+                  (face font-lock-function-name-face)
+                  11 14
+                  (face eldoc-highlight-function-argument))))
 
-     (should (re-search-forward "qux s"))
-     (should (equal-including-properties
-              (funcall eldoc-documentation-function)
-              #("qux: (&rest ARGS)" 0 3
-                (face font-lock-function-name-face)
-                12 16
-                (face eldoc-highlight-function-argument))))
+       (should (re-search-forward "qux s"))
+       (should (equal-including-properties
+                (funcall eldoc-documentation-function)
+                #("qux: (&rest ARGS)" 0 3
+                  (face font-lock-function-name-face)
+                  12 16
+                  (face eldoc-highlight-function-argument))))
 
-     (should (re-search-forward "quux s"))
-     (should (equal-including-properties
-              (funcall eldoc-documentation-function)
-              #("quux: (&rest ARGS)" 0 4
-                (face font-lock-function-name-face)
-                13 17
-                (face eldoc-highlight-function-argument))))
+       (should (re-search-forward "quux s"))
+       (should (equal-including-properties
+                (funcall eldoc-documentation-function)
+                #("quux: (&rest ARGS)" 0 4
+                  (face font-lock-function-name-face)
+                  13 17
+                  (face eldoc-highlight-function-argument))))
 
-     (should (re-search-forward "yyy s"))
-     (should-not (funcall eldoc-documentation-function))
+       (should (re-search-forward "yyy s"))
+       (should-not (funcall eldoc-documentation-function))
 
-     (should (re-search-forward "zzz s"))
-     (should-not (funcall eldoc-documentation-function)))))
+       (should (re-search-forward "zzz s"))
+       (should-not (funcall eldoc-documentation-function))))))
 
 
-(ert-deftest arx--make-macro-docstring ()
+(ert-deftest arx-test-make-macro-docstring ()
   (should (equal (arx--make-macro-docstring "foo-rx" '())
                  "\
 Translate regular expressions REGEXPS in sexp form to a regexp string.
@@ -271,3 +278,29 @@ foo
 bar
 
 Use function `foo-rx-to-string' to do such a translation at run-time.")))
+
+
+;; (ert-deftest arx-test-alias-cycles ()
+;;   (should-error-re
+;;    (with-myrx
+;;     '((bar bar))
+;;     (myrx bar))
+;;    "Cycle detected")
+
+;;   ;; (should-error-re
+;;   ;;  (with-myrx
+;;   ;;   '((bar foo)
+;;   ;;     (foo bar)))
+;;   ;;  "Cycle detected")
+
+;;   ;; (should-error-re
+;;   ;;  (with-myrx
+;;   ;;   '((bar (or "foo" bar))))
+;;   ;;  "Cycle detected")
+
+;;   ;; (should-error-re
+;;   ;;  (with-myrx
+;;   ;;   '((bar (or "foo" bar))))
+;;   ;;  "Cycle detected")
+
+;; )
