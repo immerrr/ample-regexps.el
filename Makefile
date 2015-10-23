@@ -18,4 +18,4 @@ test-compiled: ample-regexps.elc
 test: test-compiled test-uncompiled
 
 tryout:
-	cask exec $(EMACS) -Q -l init-tryout.el test-arx.el
+	cask exec $(EMACS) -Q -L . -l init-tryout.el test-arx.el

@@ -1,9 +1,7 @@
-;; do nothing
-
-(load-file "ample-regexps.el")
+(require 'ample-regexps)
 (require 're-builder)
 
 
-(define-arx foobar
+(define-arx foobar-rx
   `((foo "foobarbaz")
     (bar foo)))
