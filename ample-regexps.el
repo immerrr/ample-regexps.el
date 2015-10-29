@@ -199,14 +199,13 @@ ARX-FORM must be list containing one element according to the
               (indent-rigidly (point-min) (point-max) 4)
               (buffer-substring-no-properties (point-min) (point-max))))))
 
-
 (defun arx--fnsym-in-current-sexp ()
   "Return current function symbol and current arg index."
   (save-excursion
     (when (nth 8 (syntax-ppss))
       ;; Exit innermost string or comment.
       (goto-char (nth 8 (syntax-ppss))))
-    (elisp--fnsym-in-current-sexp)))
+    (arx--fnsym-in-current-sexp-1)))
 
 
 (defun arx--name-and-depth ()
@@ -253,8 +252,8 @@ Resolves all aliases on the way."
 (defun arx--get-args-string (func sym index)
   "Return highlighted args string for FUNC referred by SYM at INDEX'th arg."
   (let ((arglist (help-function-arglist func)))
-    (elisp--highlight-function-argument
-     sym (elisp-function-argstring (cdr arglist)) index
+    (arx--highlight-function-argument
+     sym (arx--function-argstring (cdr arglist)) index
      (concat (propertize (symbol-name sym) 'face 'font-lock-function-name-face)
              ": "))))
 
@@ -272,17 +271,95 @@ Resolves all aliases on the way."
       (arx--get-args-string func (car fnsym) (cadr fnsym)))))
 
 
+(if (fboundp 'add-function)
+    (progn
+      (defun arx--activate-eldoc-function ()
+        (add-function :before-until (local 'eldoc-documentation-function)
+                      #'arx-documentation-function))
+      (defun arx--deactivate-eldoc-function ()
+        (remove-function (local 'eldoc-documentation-function)
+                         #'arx-documentation-function)))
+  (defun arx--documentation-function-with-fallback ()
+    (or (arx-documentation-function)
+        (let* ((current-symbol (eldoc-current-symbol))
+               (current-fnsym  (eldoc-fnsym-in-current-sexp))
+               (doc (cond
+                     ((null current-fnsym)
+                      nil)
+                     ((eq current-symbol (car current-fnsym))
+                      (or (apply 'eldoc-get-fnsym-args-string
+                                 current-fnsym)
+                          (eldoc-get-var-docstring current-symbol)))
+                     (t
+                      (or (eldoc-get-var-docstring current-symbol)
+                          (apply 'eldoc-get-fnsym-args-string
+                                 current-fnsym))))))
+          doc)))
+
+  (defun arx--activate-eldoc-function ()
+    (assert (null eldoc-documentation-function))
+    (setq-local eldoc-documentation-function
+                'arx--documentation-function-with-fallback))
+
+  (defun arx--deactivate-eldoc-function ()
+    (assert (eq eldoc-documentation-function
+                'arx--documentation-function-with-fallback))
+    (setq-local eldoc-documentation-function nil)))
+
 (define-minor-mode arx-minor-mode
   "Toggle arx minor mode.
 
 When arx-minor-mode is enabled eldoc is hinted to return help for
 known arx forms."
   :lighter "[arx]"
+  (unless (fboundp 'arx--fnsym-in-current-sexp-1)
+    (require 'eldoc)
+    (defalias 'arx--fnsym-in-current-sexp-1
+      (symbol-function (if (fboundp 'eldoc-fnsym-in-current-sexp)
+			   'eldoc-fnsym-in-current-sexp
+			 'elisp--fnsym-in-current-sexp))
+      "Helper function for `arx--fnsym-in-current-sexp'")
+    (defalias 'arx--function-argstring
+      (symbol-function (if (fboundp 'eldoc-function-argstring)
+			   'eldoc-function-argstring
+			 'elisp-function-argstring))
+      "Compatibility alias for `elisp-function-argstring'")
+    (defalias 'arx--highlight-function-argument
+      (if (fboundp 'eldoc-highlight-function-argument)
+          (lambda (sym args index &rest ign)
+            (eldoc-highlight-function-argument
+             sym (eldoc-function-argstring-format args) index))
+        (symbol-function 'elisp--highlight-function-argument))
+      "Compatibility alias for `elisp--highlight-function-argument'"))
   (if arx-minor-mode
-      (add-function :before-until (local 'eldoc-documentation-function)
-                    #'arx-documentation-function)
-    (remove-function (local 'eldoc-documentation-function)
-                     #'arx-documentation-function)))
+      (progn
+	(eldoc-mode 1)
+        (arx--activate-eldoc-function))
+    (arx--deactivate-eldoc-function)))
+
+
+(defun eldoc-print-current-symbol-info ()
+  (condition-case err
+      (and (eldoc-display-message-p)
+	   (if eldoc-documentation-function
+	       (eldoc-message (funcall eldoc-documentation-function))
+	     (let* ((current-symbol (eldoc-current-symbol))
+		    (current-fnsym  (eldoc-fnsym-in-current-sexp))
+		    (doc (cond
+			  ((null current-fnsym)
+			   nil)
+			  ((eq current-symbol (car current-fnsym))
+			   (or (apply 'eldoc-get-fnsym-args-string
+				      current-fnsym)
+			       (eldoc-get-var-docstring current-symbol)))
+			  (t
+			   (or (eldoc-get-var-docstring current-symbol)
+			       (apply 'eldoc-get-fnsym-args-string
+				      current-fnsym))))))
+	       (eldoc-message doc))))
+    ;; This is run from post-command-hook or some idle timer thing,
+    ;; so we need to be careful that errors aren't ignored.
+    (error (message "eldoc error: %s" err))))
 
 (defun arx--make-macro-constituents-docstring (macro-name)
   "Format docstring for MACRO-NAME -constituents var."
