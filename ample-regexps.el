@@ -297,13 +297,15 @@ Resolves all aliases on the way."
           doc)))
 
   (defun arx--activate-eldoc-function ()
-    (assert (null eldoc-documentation-function))
+    (when eldoc-documentation-function
+      (error "arx--activate-eldoc-function: non-nil eldoc-documentation-function not supported"))
     (setq-local eldoc-documentation-function
                 'arx--documentation-function-with-fallback))
 
   (defun arx--deactivate-eldoc-function ()
-    (assert (eq eldoc-documentation-function
-                'arx--documentation-function-with-fallback))
+    (unless (eq eldoc-documentation-function
+                'arx--documentation-function-with-fallback)
+      (error "arx--deactivate-eldoc-function: something changed eldoc-documentation-function value"))
     (setq-local eldoc-documentation-function nil)))
 
 (define-minor-mode arx-minor-mode
