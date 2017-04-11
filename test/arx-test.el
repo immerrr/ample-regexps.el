@@ -1,11 +1,6 @@
 ;; -*- flycheck-disabled-checkers: (emacs-lisp-checkdoc) -*-
 ;; -*- no-byte-compile: t; -*-
 (require 'ert)
-(require 'test-helper
-         ;; let's try a bit to help Emacs find the helpers, just in case
-         (concat (file-name-directory (or load-file-name (buffer-file-name)
-                                          default-directory))
-                 "test-helper.el"))
 
 (ert-deftest arx-empty-list ()
   (with-myrx
