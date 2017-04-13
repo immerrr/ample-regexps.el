@@ -21,6 +21,3 @@
      (let* ((result (should-error ,expr))
              (msg (cadr result)))
        (should (string-match ,pattern msg)))))
-
-
-(provide 'test-helper)
