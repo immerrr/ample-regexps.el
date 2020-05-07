@@ -265,7 +265,7 @@ about format of elements of this list."))))
     (with-myrx
      '((name (regexp "[[:alnum:]_]+")))
 
-     (should (equal (get 'myrx-bindings 'variable-documentation)
+     (should (equal (get 'myrx-constituents 'variable-documentation)
                     "\
 List of form definitions for `myrx' and `myrx-to-string' functions.
 
@@ -283,22 +283,26 @@ of elements of this list.")))))
                   "\
 Parse and produce code for regular expression FORM.
 
-FORM is a regular expression in sexp form as supported by ‘myrx’.
-NO-GROUP non-nil means don’t put shy groups around the result."))))
+FORM is a regular expression in sexp form as supported by `myrx'.
+NO-GROUP non-nil means don't put shy groups around the result."))))
 
 
 (ert-deftest arx-rx-docstring ()
   (with-myrx
-   '((name (regexp "[[:alnum:]_]+")))
+   '((name (regexp "[[:alnum:]_]+"))
+     (foo-bar "foo.bar.baz"))
 
    (should (equal (documentation 'myrx)
                   "\
 Translate regular expressions REGEXPS in sexp form to a regexp string.
 
-See macro ‘rx’ for more documentation on REGEXPS parameter.
+See macro `rx' for more documentation on REGEXPS parameter.
 This macro additionally supports the following forms:
 
-‘name’
-    An alias for ‘(regexp [[:alnum:]_]+)’.
+`name'
+    An alias for (regexp \"[[:alnum:]_]+\").
 
-Use function ‘myrx-to-string’ to do such a translation at run-time."))))
+`foo-bar'
+    A regexp matching literal string: \"foo.bar.baz\".
+
+Use function `myrx-to-string' to do such a translation at run-time."))))

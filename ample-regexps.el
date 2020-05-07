@@ -224,10 +224,10 @@ ARX-FORM must be list containing one element according to the
     (cond
      ((symbolp form-defn)
       (setq header form-sym
-            docstring (format "An alias for `%s'." form-defn)))
+            docstring (format "An alias for %S." form-defn)))
      ((stringp form-defn)
       (setq header form-sym
-            docstring (format "A pre-rendered regexp: %S." form-defn)))
+            docstring (format "A regexp matching literal string: %S." form-defn)))
      ((eq :func (car-safe form-defn))
       (let* ((func (plist-get form-defn :func))
              ;; copy arglist because it is modified later on.
@@ -238,7 +238,7 @@ ARX-FORM must be list containing one element according to the
                             "Function without documentation."))))
      ((listp form-defn)
       (setq header form-sym
-            docstring (format "An alias for `%s'." form-defn))))
+            docstring (format "An alias for %S." form-defn))))
     (format "`%s'\n%s" header
             (with-temp-buffer
               (insert docstring)

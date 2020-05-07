@@ -10,7 +10,8 @@
      ;; definition and not test execution.
      (eval (quote (define-arx myrx ,arx-forms)))
      (unwind-protect
-         (progn ,@body)
+         (let ((text-quoting-style 'grave))
+          (progn ,@body))
        (makunbound 'myrx-constituents)
        (fmakunbound 'myrx-to-string)
        (fmakunbound 'myrx))))
