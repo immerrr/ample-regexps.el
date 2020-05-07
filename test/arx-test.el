@@ -7,12 +7,15 @@
    '()
    (should (equal (myrx "foobar") "foobar"))))
 
+(defvar arx--new-rx (not (fboundp 'rx-form)))
+
 (ert-deftest arx-alias-for-literal-basic ()
   (with-myrx
    '((hello "Hello"))
    (should (equal (myrx hello) "Hello"))
    (should (equal (myrx hello ", world") "Hello, world"))
-   (should (equal (myrx (or hello ", world")) "Hello\\|, world"))
+   (should (equal (myrx (or hello ", world"))
+                  (if arx--new-rx "\\(?:, world\\|Hello\\)" "Hello\\|, world")))
    (should (equal (myrx (* hello)) "\\(?:Hello\\)*"))))
 
 (ert-deftest arx-constituents-are-redefined ()
@@ -25,7 +28,7 @@
 
    (should-error-re
     (myrx-to-string '(: hello) t)
-    "Unknown rx form [‘`]hello['’]")))
+    "Unknown rx \\(form\\|symbol\\) [‘`]hello['’]")))
 
 
 (ert-deftest arx-alias-for-literal-with-quoting ()
@@ -59,7 +62,15 @@
   (with-myrx
    '((name (regexp "[[:alnum:]_]+"))
      (assign (seq name "=" name)))
-   (should (equal (myrx assign) "[[:alnum:]_]+=[[:alnum:]_]+"))))
+   (should (equal (myrx assign)
+                  (if arx--new-rx
+                      "\\(?:[[:alnum:]_]+\\)=\\(?:[[:alnum:]_]+\\)"
+                    "[[:alnum:]_]+=[[:alnum:]_]+")))
+
+   (should (equal (myrx (* assign))
+                  (if arx--new-rx
+                      "\\(?:\\(?:[[:alnum:]_]+\\)=\\(?:[[:alnum:]_]+\\)\\)*"
+                    "\\(?:[[:alnum:]_]+=[[:alnum:]_]+\\)*")))))
 
 
 (ert-deftest arx-form-function-returning-regexp ()
