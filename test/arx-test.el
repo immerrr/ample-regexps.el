@@ -71,48 +71,28 @@
                     "\\(?:[[:alnum:]_]+=[[:alnum:]_]+\\)*")))))
 
 
-(ert-deftest arx-form-function-returning-regexp ()
-  ; FIXME: implement support for functions in Emacs 27
-  :expected-result (if arx--new-rx :failed :passed)
+(ert-deftest arx-form-function-returning-string ()
   (with-myrx
-   '((1: (:func (lambda (name &rest args)
-                  (concat "\\(?1:" (arx-and args) "\\)")))))
-   (should (equal (myrx (1: "foo"))
-                  "\\(?1:foo\\)"))
-   (should (equal (myrx (1: "foo" "bar" "baz"))
-                  "\\(?1:foobarbaz\\)"))
+   '((1: (:func (lambda (_name &optional arg)
+                  (format "hello, %s." (or arg ""))))))
+   (should (equal (myrx (1: "foo")) "hello, foo\\."))
+   (should (equal (myrx (1:)) "hello, \\."))))
 
-   (should (equal (myrx (1:))
-                  "\\(?1:\\)"))
-   ;; should-error doesn't work with macros, so fall back to `myrx-to-string'
-   (should (equal (myrx-to-string '(1:) 'nogroup)
-                  "\\(?1:\\)"))
-   (should-error-re
-    (myrx-to-string '1: 'nogroup)
-    "rx [‘`]1:['’] needs argument(s)")))
 
 
 (ert-deftest arx-form-function-returning-form ()
   (with-myrx
-   '((sym (:func
-           (lambda (name &rest args)
-             (if (> (length args) 1)
-                 (setq args `(or ,@args)))
-             `(seq symbol-start ,@args symbol-stop))))
-     (should (equal (myrx (sym "foo"))
-                    "\\_<foo\\_>"))
-     (should (equal (myrx (sym "foo" "bar"))
-                    "\\_<\\(?:foo\\|bar\\)\\_>"))
-     (should (equal (myrx (sym (seq (or "foo" "bar") "baz")))
-                    "\\_<\\(?:\\(?:foo\\|bar\\)baz\\)\\_>"))
+   '((repeat-unwind (:func (lambda (_form count elt)
+                             `(seq ,@(make-list count elt))))))
 
-     ;; This test hardly makes any sense regex-wise, but empty arguments are not
-     ;; forbidden in the form definition, so should work.
-     (should (equal (myrx (sym)) "\\_<\\_>")))))
+   (should (equal (myrx (repeat-unwind 1 (or "foo" "bar")))
+                  "\\(?:bar\\|foo\\)"))
+   (should (equal (myrx (repeat-unwind 2 (or "foo" "bar")))
+                  "\\(?:bar\\|foo\\)\\(?:bar\\|foo\\)"))))
 
 
 (ert-deftest arx-form-function-fixed-number-of-args ()
-  ; FIXME: implement support for functions in Emacs 27
+  ;; FIXME: implement support for functions in Emacs 27
   :expected-result (if arx--new-rx :failed :passed)
   (with-myrx
    '((foobar (:func (lambda (_ foo bar) `(or ,foo ,bar)))))
@@ -181,16 +161,18 @@
 (ert-deftest arx-conditional-form-inclusion ()
   (with-myrx
    `((foo "foo")
-     ,(when t '(bar "hello")))
-   (should (assq 'foo myrx-constituents))
-   (should (assq 'bar myrx-constituents)))
+     ,(when t '(bar "bar")))
+   (should (equal (myrx-to-string 'foo t) "foo"))
+   (should (equal (myrx-to-string 'bar t) "bar")))
 
   (with-myrx
    `((foo "foo")
      ,(when nil '(bar "hello")))
-   (should (assq 'foo myrx-constituents))
-   (should-not (assq 'bar myrx-constituents))
-   (should-not (assq nil myrx-constituents))))
+
+   (should (equal (myrx-to-string 'foo t) "foo"))
+   (should-error-re
+    (myrx-to-string 'bar t)
+    "Unknown rx \\(form\\|symbol\\) [‘`]bar['’]")))
 
 
 (defun arx--test-form (form foo bar))
@@ -266,24 +248,58 @@
      (should-not (funcall eldoc-documentation-function)))))
 
 
-(ert-deftest arx--make-macro-docstring ()
-  (should (equal (arx--make-macro-docstring "foo-rx" '())
-                 "\
+(if arx--new-rx
+    (ert-deftest arx-rx-bindings-docstring ()
+      (with-myrx
+       '((name (regexp "[[:alnum:]_]+")))
+
+       (should (equal (get 'myrx-bindings 'variable-documentation)
+                      "\
+List of bindings for `myrx' and `myrx-to-string' functions.
+
+See `myrx' for a human readable list of defined forms.
+
+See parameter BINDINGS for function `rx-let' for more information
+about format of elements of this list."))))
+
+  (ert-deftest arx-rx-constituents-docstring ()
+    (with-myrx
+     '((name (regexp "[[:alnum:]_]+")))
+
+     (should (equal (get 'myrx-bindings 'variable-documentation)
+                    "\
+List of form definitions for `myrx' and `myrx-to-string' functions.
+
+See `myrx' for a human readable list of defined forms.
+
+See variable `rx-constituents' for more information about format
+of elements of this list.")))))
+
+
+(ert-deftest arx-rx-to-string-docstring ()
+  (with-myrx
+   '((name (regexp "[[:alnum:]_]+")))
+
+   (should (equal (documentation 'myrx-to-string)
+                  "\
+Parse and produce code for regular expression FORM.
+
+FORM is a regular expression in sexp form as supported by ‘myrx’.
+NO-GROUP non-nil means don’t put shy groups around the result."))))
+
+
+(ert-deftest arx-rx-docstring ()
+  (with-myrx
+   '((name (regexp "[[:alnum:]_]+")))
+
+   (should (equal (documentation 'myrx)
+                  "\
 Translate regular expressions REGEXPS in sexp form to a regexp string.
 
-See macro `rx' for more documentation on REGEXPS parameter.
-
-Use function `foo-rx-to-string' to do such a translation at run-time."))
-
-  (should (equal (arx--make-macro-docstring "foo-rx" '("foo" "bar"))
-                 "\
-Translate regular expressions REGEXPS in sexp form to a regexp string.
-
-See macro `rx' for more documentation on REGEXPS parameter.
+See macro ‘rx’ for more documentation on REGEXPS parameter.
 This macro additionally supports the following forms:
 
-foo
+‘name’
+    An alias for ‘(regexp [[:alnum:]_]+)’.
 
-bar
-
-Use function `foo-rx-to-string' to do such a translation at run-time.")))
+Use function ‘myrx-to-string’ to do such a translation at run-time."))))
