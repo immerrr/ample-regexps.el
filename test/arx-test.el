@@ -14,8 +14,8 @@
    '((hello "Hello"))
    (should (equal (myrx hello) "Hello"))
    (should (equal (myrx hello ", world") "Hello, world"))
-   (should (equal (myrx (or hello ", world"))
-                  (if arx--new-rx "\\(?:, world\\|Hello\\)" "Hello\\|, world")))
+   (should (member (myrx (or hello ", world") )
+                   '("\\(?:, world\\|Hello\\)" "Hello\\|, world")))
    (should (equal (myrx (* hello)) "\\(?:Hello\\)*"))))
 
 (ert-deftest arx-constituents-are-redefined ()
@@ -62,14 +62,12 @@
   (with-myrx
    '((name (regexp "[[:alnum:]_]+"))
      (assign (seq name "=" name)))
-   (should (equal (myrx assign)
-                  (if arx--new-rx
-                      "\\(?:[[:alnum:]_]+\\)=\\(?:[[:alnum:]_]+\\)"
-                    "[[:alnum:]_]+=[[:alnum:]_]+")))
+   (should (member (myrx assign)
+                   '("\\(?:[[:alnum:]_]+\\)=\\(?:[[:alnum:]_]+\\)"
+                     "[[:alnum:]_]+=[[:alnum:]_]+")))
 
-   (should (equal (myrx (* assign))
-                  (if arx--new-rx
-                      "\\(?:\\(?:[[:alnum:]_]+\\)=\\(?:[[:alnum:]_]+\\)\\)*"
+   (should (member (myrx (* assign))
+                  '("\\(?:\\(?:[[:alnum:]_]+\\)=\\(?:[[:alnum:]_]+\\)\\)*"
                     "\\(?:[[:alnum:]_]+=[[:alnum:]_]+\\)*")))))
 
 
