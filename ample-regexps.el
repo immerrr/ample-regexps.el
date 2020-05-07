@@ -396,8 +396,8 @@ Use function `%s-to-string' to do such a translation at run-time."
        ;; Define MACRO-to-string function.
        (defun ,macro-to-string (form &optional no-group)
          ,(arx--make-macro-to-string-docstring macro-name)
-         `(let ((rx-constituents ,macro-constituents))
-             (rx-to-string form no-group)))
+         (let ((rx-constituents ,macro-constituents))
+           (rx-to-string form no-group)))
 
        ;; Define MACRO.
        (defmacro ,macro (&rest regexps)
