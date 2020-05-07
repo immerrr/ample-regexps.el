@@ -71,13 +71,12 @@
                     "\\(?:[[:alnum:]_]+=[[:alnum:]_]+\\)*")))))
 
 
-(ert-deftest arx-form-function-returning-string ()
+(ert-deftest arx-form-function-returning-string-is-treated-as-regexp ()
   (with-myrx
    '((1: (:func (lambda (_name &optional arg)
                   (format "hello, %s." (or arg ""))))))
-   (should (equal (myrx (1: "foo")) "hello, foo\\."))
-   (should (equal (myrx (1:)) "hello, \\."))))
-
+   (should (equal (myrx (1: "foo")) "hello, foo."))
+   (should (equal (myrx (1:)) "hello, ."))))
 
 
 (ert-deftest arx-form-function-returning-form ()

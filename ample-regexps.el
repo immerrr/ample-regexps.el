@@ -171,6 +171,15 @@ ARX-FORM must be list containing one element according to the
 
            (t (error "Incorrect arx-form: %S" arx-form))))))
 
+(defun arx--apply-func-post-27 (arity predicate func form-name args)
+  ;; FIXME: add validations for args vs arity
+  (let ((result (apply func form-name args)))
+    (if (stringp result)
+        ;; By default, consider all string results as pre-formatted regexps.
+        (list 'regexp result)
+      result)))
+
+
 (defun arx--form-to-rx-binding (arx-form)
   "Convert ARX-FORM to post-Emacs-27 binding format."
   (unless (listp arx-form)
@@ -199,7 +208,7 @@ ARX-FORM must be list containing one element according to the
                    (predicate (plist-get form-defn :predicate))
                    (args-symbol (make-symbol (format "%s-args" (symbol-name form-name)))))
               ;; FIXME: add support for arity validations.
-              `((&rest ,args-symbol) (eval (apply ,func ',form-name '(,args-symbol))))))
+              `((&rest ,args-symbol) (eval (arx--apply-func-post-27 ',arity ,predicate ,func ',form-name '(,args-symbol))))))
            ((or (listp form-defn)
                 (stringp form-defn)
                 (symbolp form-defn))
