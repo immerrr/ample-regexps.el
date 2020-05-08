@@ -7,8 +7,6 @@
    '()
    (should (equal (myrx "foobar") "foobar"))))
 
-(defvar arx--new-rx (not (fboundp 'rx-form)))
-
 (ert-deftest arx-alias-for-literal-basic ()
   (with-myrx
    '((hello "Hello"))
