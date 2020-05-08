@@ -1,21 +1,23 @@
 EMACS ?= emacs
+EMACS_VERSION=$(shell $(EMACS) -batch -eval '(princ (format "%s.%s" emacs-major-version emacs-minor-version))')
 EMACS_BATCH=cask exec $(EMACS) --batch -Q
+AMPLE_REGEXPS_ELC=ample-regexps.$(EMACS_VERSION).elc
 
 .PHONY: test-compiled test-uncompiled
 
 dist:
 	cask package
 
-%.elc: %.el
-	$(EMACS_BATCH) -f batch-byte-compile ample-regexps.el
+$(AMPLE_REGEXPS_ELC): ample-regexps.el
+	$(EMACS_BATCH) -f batch-byte-compile ample-regexps.el && mv ample-regexps.elc $(AMPLE_REGEXPS_ELC)
 
 test-uncompiled:
 	cask exec ert-runner -l ample-regexps.el
 
-test-compiled: ample-regexps.elc
-	cask exec ert-runner -l ample-regexps.elc
+test-compiled: $(AMPLE_REGEXPS_ELC)
+	cask exec ert-runner -l $(AMPLE_REGEXPS_ELC)
 
-test: test-compiled test-uncompiled
+test: test-uncompiled test-compiled
 
 tryout:
 	cask exec $(EMACS) -Q -L . -l init-tryout.el test-arx.el
