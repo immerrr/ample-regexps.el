@@ -1,6 +1,6 @@
 ;;; ample-regexps.el --- ample regular expressions for Emacs
 
-;; Copyright (C) 2014 immerrr
+;; Copyright (C) 2014-2020 immerrr
 
 ;; Author: immerrr <immerrr@gmail.com>
 ;; Created: 22 Jun 2014
