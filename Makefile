@@ -3,13 +3,16 @@ EMACS_VERSION=$(shell $(EMACS) -batch -eval '(princ (format "%s.%s" emacs-major-
 EMACS_BATCH=cask exec $(EMACS) --batch -Q
 AMPLE_REGEXPS_ELC=ample-regexps.$(EMACS_VERSION).elc
 
-.PHONY: test-compiled test-uncompiled
+.PHONY: test-compiled test-uncompiled compile
 
 dist:
 	cask package
 
-$(AMPLE_REGEXPS_ELC): ample-regexps.el
+compile:
 	$(EMACS_BATCH) -f batch-byte-compile ample-regexps.el && mv ample-regexps.elc $(AMPLE_REGEXPS_ELC)
+
+$(AMPLE_REGEXPS_ELC): ample-regexps.el
+	make compile
 
 test-uncompiled:
 	cask exec ert-runner -l ample-regexps.el
