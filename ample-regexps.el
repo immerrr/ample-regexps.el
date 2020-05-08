@@ -1,6 +1,6 @@
 ;;; ample-regexps.el --- ample regular expressions for Emacs
 
-;; Copyright (C) 2014 immerrr
+;; Copyright (C) 2014-2020 immerrr
 
 ;; Author: immerrr <immerrr@gmail.com>
 ;; Created: 22 Jun 2014
@@ -40,42 +40,14 @@
 (require 'rx)
 (require 'help-fns)
 
-;; Make sure `rx-parent' is dynamically bound
-(defvar rx-parent)
-
-(defun arx--ensure-regexp (maybe-regexp)
-  "Convert MAYBE-REGEXP to string if it is an rx form."
-  (if (listp maybe-regexp)
-      (rx-form maybe-regexp rx-parent)
-    maybe-regexp))
-
-(defun arx--quoted-literal (literal &optional form)
-  "Regexp-quote and shy-group LITERAL as necessary.
-
-When partially applied, can be added to `rx' constituents to
-handle FORM."
-  (unless (listp form)
-    (setq form (list form)))
-  (rx-check form)
-  (rx-form literal rx-parent))
+(eval-and-compile
+ (defvar arx--new-rx (not (fboundp 'rx-form))))
 
 
-(defun arx--apply-form-func (form-func form)
-  "Apply FORM-FUNC to FORM, return result as regexp string.
-
-When partially applied, can be added to `rx' constituents to
-handle FORM."
-  (rx-check form)
-  (arx--ensure-regexp (apply form-func form)))
-
-
-(defun arx--alias-rx-form (aliased-form form)
-  "Convert ALIASED-FORM to string.
-
-When partially applied, can be added to `rx' constituents to
-handle FORM."
-  (rx-check (list form))
-  (rx-form aliased-form rx-parent))
+(defmacro arx--include-if (condition &rest body)
+  (declare (indent 1) (debug (&rest form)))
+  (when (eval condition)
+    `(progn ,@body)))
 
 
 (defun arx--bound-interval (interval lower upper)
@@ -123,53 +95,134 @@ if less than `most-positive-fixnum'."
               most-positive-fixnum
             (1- max-args)))))
 
+(arx--include-if (not arx--new-rx)
+  ;; Make sure `rx-parent' is dynamically bound
+  (defvar rx-parent)
 
-(defun arx--form-to-rx-constituent (arx-form)
-  "Convert ARX-FORM to pre-Emacs-27 rx constituent format.
+  (defun arx--ensure-regexp (maybe-regexp)
+    "Convert MAYBE-REGEXP to string if it is an rx form."
+    (if (listp maybe-regexp)
+        (rx-form maybe-regexp rx-parent)
+      maybe-regexp))
+
+  (defun arx--quoted-literal (literal &optional form)
+    "Regexp-quote and shy-group LITERAL as necessary.
+
+When partially applied, can be added to `rx' constituents to
+handle FORM."
+    (unless (listp form)
+      (setq form (list form)))
+    (rx-check form)
+    (rx-form literal rx-parent))
+
+
+  (defun arx--apply-form-func (form-func form)
+    "Apply FORM-FUNC to FORM, return result as regexp string.
+
+When partially applied, can be added to `rx' constituents to
+handle FORM."
+    (rx-check form)
+    (arx--ensure-regexp (apply form-func form)))
+
+
+  (defun arx--alias-rx-form (aliased-form form)
+    "Convert ALIASED-FORM to string.
+
+When partially applied, can be added to `rx' constituents to
+handle FORM."
+    (rx-check (list form))
+    (rx-form aliased-form rx-parent))
+
+  (defun arx--form-to-rx-constituent (arx-form)
+    "Convert ARX-FORM to pre-Emacs-27 rx constituent format.
 
 ARX-FORM must be list containing one element according to the
 `define-arx' documentation."
 
-  (unless (listp arx-form)
-    (error "Form is not a list: %S" arx-form))
+    (unless (listp arx-form)
+      (error "Form is not a list: %S" arx-form))
 
-  (let* ((form-name (car arx-form))
-         (form-defn (cadr arx-form)))
-    (cons form-name
-          (cond
-           ((listp form-defn)
-            (if (eq (car-safe form-defn) :func)
-                (let* ((func (if (functionp (plist-get form-defn :func))
-                                 (byte-compile (plist-get form-defn :func))
-                               (error "Not a function: %S" (plist-get form-defn :func))))
-                       (min-args (plist-get form-defn :min-args))
-                       (max-args (plist-get form-defn :max-args))
-                       (arity (arx--bound-interval (arx--function-arity func)
-                                                   min-args max-args))
-                       (predicate (plist-get form-defn :predicate)))
-                  ;; fancy function definition
-                  `( ,(apply-partially #'arx--apply-form-func func)
-                     ,@arity ,predicate))
-              ;; This doesn't work:
-              ;;
-              ;;     (list (lambda (form) (arx--alias-rx-form form-defn form))
-              ;;           0 0)
-              ;;
-              ;; because of
-              ;;
-              ;;     Lisp error: (void-function closure)
-              ;;
-              ;; Why?
-              (list (apply-partially #'arx--alias-rx-form form-defn) 0 0)))
-           ((stringp form-defn)
-            (list (apply-partially #'arx--quoted-literal form-defn)
-                  0 0 nil))
+    (let* ((form-name (car arx-form))
+           (form-defn (cadr arx-form)))
+      (cons form-name
+            (cond
+             ((listp form-defn)
+              (if (eq (car-safe form-defn) :func)
+                  (let* ((func (if (functionp (plist-get form-defn :func))
+                                   (byte-compile (plist-get form-defn :func))
+                                 (error "Not a function: %S" (plist-get form-defn :func))))
+                         (min-args (plist-get form-defn :min-args))
+                         (max-args (plist-get form-defn :max-args))
+                         (arity (arx--bound-interval (arx--function-arity func)
+                                                     min-args max-args))
+                         (predicate (plist-get form-defn :predicate)))
+                    ;; fancy function definition
+                    `( ,(apply-partially #'arx--apply-form-func func)
+                       ,@arity ,predicate))
+                ;; This doesn't work:
+                ;;
+                ;;     (list (lambda (form) (arx--alias-rx-form form-defn form))
+                ;;           0 0)
+                ;;
+                ;; because of
+                ;;
+                ;;     Lisp error: (void-function closure)
+                ;;
+                ;; Why?
+                (list (apply-partially #'arx--alias-rx-form form-defn) 0 0)))
+             ((stringp form-defn)
+              (list (apply-partially #'arx--quoted-literal form-defn)
+                    0 0 nil))
 
-           ((symbolp form-defn)
-            ;; already a valid rx form, do nothing
-            form-defn)
+             ((symbolp form-defn)
+              ;; already a valid rx form, do nothing
+              form-defn)
 
-           (t (error "Incorrect arx-form: %S" arx-form))))))
+             (t (error "Incorrect arx-form: %S" arx-form))))))
+
+  (defun define-arx--fn-pre-27 (macro form-defs)
+  "Implementation for `define-arx' for MACRO and FORM-DEFS for pre-27 Emacsen."
+  (let* ((macro-name (symbol-name macro))
+         (macro-to-string (intern (concat macro-name "-to-string")))
+         (macro-constituents (intern (concat macro-name "-constituents")))
+         extra-constituents form-docstrings)
+    ;; Preprocess the definitions
+    (setq form-defs (delq nil form-defs))
+    (setq extra-constituents (mapcar #'arx--form-to-rx-constituent form-defs))
+    (setq form-docstrings (mapcar #'arx--form-make-docstring form-defs))
+    `(eval-and-compile
+       ;; Define MACRO-constituents variable.
+       (defvar ,macro-constituents
+         nil
+         ,(arx--make-macro-constituents-docstring macro-name))
+       ;; Set MACRO-constituents value in setq so as to refresh
+       ;; constituents when re-evaluating define-arx.
+       (setq ,macro-constituents
+             (append rx-constituents (quote ,extra-constituents)))
+
+       ;; Define MACRO-to-string function.
+       (defun ,macro-to-string (form &optional no-group)
+         ,(arx--make-macro-to-string-docstring macro-name)
+         (let ((rx-constituents ,macro-constituents))
+           (rx-to-string form no-group)))
+
+       ;; Define MACRO.
+       (defmacro ,macro (&rest regexps)
+         ,(arx--make-macro-docstring macro-name form-docstrings)
+         (cond ((null regexps)
+                (error "No regexp"))
+               ((cdr regexps)
+                (,macro-to-string `(and ,@regexps) t))
+               (t
+                (,macro-to-string (car regexps) t))))
+
+       ;; Mark macro & function for future reference.
+       (put (quote ,macro-constituents) 'arx-form-defs (quote ,form-defs))
+       (put (quote ,macro-to-string) 'arx-name ,macro-name)
+       (put (quote ,macro) 'arx-name ,macro-name)
+
+       ;; Return value is the macro symbol.
+       (quote ,macro)))))
 
 (defun arx--apply-func-post-27 (arity predicate func form-name args)
   (let* ((min-args (car arity))
@@ -395,50 +448,6 @@ Use function `%s-to-string' to do such a translation at run-time."
               macro-name))))
 
 
-(defun define-arx--fn-pre-27 (macro form-defs)
-  "Implementation for `define-arx' for MACRO and FORM-DEFS for pre-27 Emacsen."
-  (let* ((macro-name (symbol-name macro))
-         (macro-to-string (intern (concat macro-name "-to-string")))
-         (macro-constituents (intern (concat macro-name "-constituents")))
-         extra-constituents form-docstrings)
-    ;; Preprocess the definitions
-    (setq form-defs (delq nil form-defs))
-    (setq extra-constituents (mapcar #'arx--form-to-rx-constituent form-defs))
-    (setq form-docstrings (mapcar #'arx--form-make-docstring form-defs))
-    `(eval-and-compile
-       ;; Define MACRO-constituents variable.
-       (defvar ,macro-constituents
-         nil
-         ,(arx--make-macro-constituents-docstring macro-name))
-       ;; Set MACRO-constituents value in setq so as to refresh
-       ;; constituents when re-evaluating define-arx.
-       (setq ,macro-constituents
-             (append rx-constituents (quote ,extra-constituents)))
-
-       ;; Define MACRO-to-string function.
-       (defun ,macro-to-string (form &optional no-group)
-         ,(arx--make-macro-to-string-docstring macro-name)
-         (let ((rx-constituents ,macro-constituents))
-           (rx-to-string form no-group)))
-
-       ;; Define MACRO.
-       (defmacro ,macro (&rest regexps)
-         ,(arx--make-macro-docstring macro-name form-docstrings)
-         (cond ((null regexps)
-                (error "No regexp"))
-               ((cdr regexps)
-                (,macro-to-string `(and ,@regexps) t))
-               (t
-                (,macro-to-string (car regexps) t))))
-
-       ;; Mark macro & function for future reference.
-       (put (quote ,macro-constituents) 'arx-form-defs (quote ,form-defs))
-       (put (quote ,macro-to-string) 'arx-name ,macro-name)
-       (put (quote ,macro) 'arx-name ,macro-name)
-
-       ;; Return value is the macro symbol.
-       (quote ,macro))))
-
 (defun define-arx--fn-post-27 (macro form-defs)
   "Implementation for `define-arx' for MACRO and FORM-DEFS for post-27 Emacsen."
   (let* ((macro-name (symbol-name macro))
@@ -479,16 +488,10 @@ Use function `%s-to-string' to do such a translation at run-time."
        (quote ,macro))))
 
 
-
-
-
-
-
-(defun define-arx--fn (macro form-defs)
-  "Implementation for `define-arx' for MACRO and FORM-DEFS."
-  (if (fboundp 'rx-check)
-      (define-arx--fn-pre-27 macro form-defs)
-    (define-arx--fn-post-27 macro form-defs)))
+(eval-and-compile
+ (defalias 'define-arx--fn
+   (if arx--new-rx 'define-arx--fn-post-27 'define-arx--fn-pre-27)
+   "Implementation for `define-arx' for MACRO and FORM-DEFS."))
 
 
 ;;;###autoload
