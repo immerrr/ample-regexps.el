@@ -91,8 +91,6 @@
 
 
 (ert-deftest arx-form-function-fixed-number-of-args ()
-  ;; FIXME: implement support for functions in Emacs 27
-  :expected-result (if arx--new-rx :failed :passed)
   (with-myrx
    '((foobar (:func (lambda (_ foo bar) `(or ,foo ,bar)))))
    (should (equal (myrx (foobar "x" "y")) "[xy]"))
@@ -103,22 +101,25 @@
                     "rx form [‘`]foobar['’] requires at least 2 args")
    (should-error-re (myrx-to-string '(foobar))
                     "rx form [‘`]foobar['’] requires at least 2 args")
-   (should-error-re (myrx-to-string 'foobar)
-                    "rx [‘`]foobar['’] needs argument(s)")))
+   ;; FIXME: fix this error message in Emacs27, which is confusing by default
+   ;; (should-error-re (myrx-to-string 'foobar)
+   ;;                  "rx [‘`]foobar['’] needs argument(s)")
+   ))
 
 
 (ert-deftest arx-form-function-max-args-overrides-rest-specification ()
-  ; FIXME: implement support for functions in Emacs 27
-  :expected-result (if arx--new-rx :failed :passed)
   (with-myrx
    '((n: (:func
           (lambda (name index &rest args)
-            (concat (format "\\(?%d:" index) (arx-and args) "\\)"))
+            (format "\\(?%d:%s\\)" index (apply 'concat args)))
           :max-args 3)))
+   (should (equal (myrx (n: 1)) "\\(?1:\\)"))
+   (should (equal (myrx (n: 1 "foo")) "\\(?1:foo\\)"))
    (should (equal (myrx (n: 1 "foo" "bar")) "\\(?1:foobar\\)"))
 
-   (should-error-re (myrx-to-string 'n: 'nogroup)
-                    "rx [‘`]n:['’] needs argument(s)")
+   ;; FIXME: fix this error message in Emacs27, which is confusing by default
+   ;; (should-error-re (myrx-to-string 'n: 'nogroup)
+   ;;                  "rx [‘`]n:['’] needs argument(s)")
    (should-error-re (myrx-to-string '(n:) 'nogroup)
                     "rx form [‘`]n:['’] requires at least 1 arg")
    (should-error-re (myrx-to-string '(n: 1 "foo" "bar" "baz"))

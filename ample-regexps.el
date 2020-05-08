@@ -172,12 +172,26 @@ ARX-FORM must be list containing one element according to the
            (t (error "Incorrect arx-form: %S" arx-form))))))
 
 (defun arx--apply-func-post-27 (arity predicate func form-name args)
-  ;; FIXME: add validations for args vs arity
-  (let ((result (apply func form-name args)))
+  (let* ((min-args (car arity))
+         (max-args (cadr arity))
+         (num-args (length args))
+         result )
+    (when (and min-args (< num-args min-args))
+      (error "rx form `%s' requires at least %d arg%s"
+             (symbol-name form-name)
+             min-args
+             (if (> min-args 1) "s" "")))
+    (when (and max-args (> num-args max-args))
+      (error "rx form `%s' accepts at most %d arg%s"
+             (symbol-name form-name)
+             max-args
+             (if (> max-args 1) "s" "")))
+    (setq result (apply func form-name args))
     (if (stringp result)
         ;; By default, consider all string results as pre-formatted regexps.
         (list 'regexp result)
       result)))
+
 
 
 (defun arx--form-to-rx-binding (arx-form)
@@ -207,7 +221,6 @@ ARX-FORM must be list containing one element according to the
                                                min-args max-args))
                    (predicate (plist-get form-defn :predicate))
                    (args-symbol (make-symbol (format "%s-args" (symbol-name form-name)))))
-              ;; FIXME: add support for arity validations.
               `((&rest ,args-symbol) (eval (arx--apply-func-post-27 ',arity ,predicate ,func ',form-name '(,args-symbol))))))
            ((or (listp form-defn)
                 (stringp form-defn)
